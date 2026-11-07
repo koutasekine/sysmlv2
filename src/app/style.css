@@ -1,0 +1,205 @@
+/* 画面の見た目(GR4 指示書 6.1 節)。配色・字体・ボタンの形・ダイアログ・ドラッグ・アンド・ドロップの表示・フッターは、
+   フローチャート(flow.sapp.jp)と同じにする。 */
+:root{
+  --bg:#f4f4f2; --panel:#fff; --line:#d8d8d4; --text:#222; --accent:#8b1a2b; --err:#b00020; --sel:#fff3c4; --warn:#8a5a00;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:"Segoe UI","Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;font-size:14px;color:var(--text);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:16px;margin:0 10px 0 0;font-weight:600}
+header .sp{flex:1}
+button,select,label.btn{font:inherit;padding:4px 10px;border:1px solid #bbb;border-radius:4px;background:#fafafa;cursor:pointer;color:var(--text)}
+button:hover,label.btn:hover{background:#f0f0ee}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+select{max-width:28em}
+main{flex:1;display:flex;min-height:0}
+#left{width:38%;min-width:260px;display:flex;flex-direction:row;border-right:1px solid var(--line);background:var(--panel)}
+#leftMain{flex:1;display:flex;flex-direction:column;min-width:0}
+#splitter{width:6px;cursor:col-resize;background:var(--line)}
+#right{flex:1;display:flex;flex-direction:column;min-width:0}
+#editor{flex:1;position:relative;min-height:0}
+textarea#src,textarea.fsrc,#hl{position:absolute;inset:0;margin:0;border:0;padding:10px;font:13px/1.5 Consolas,"Courier New",monospace;tab-size:4;white-space:pre;overflow:auto;box-sizing:border-box;word-break:normal;overflow-wrap:normal}
+textarea#src,textarea.fsrc{resize:none;outline:none;background:transparent;color:transparent;caret-color:#222;z-index:1}
+textarea#src::selection,textarea.fsrc::selection{background:rgba(139,26,43,.25);color:transparent}
+#fileBar{padding:4px 10px;border-bottom:1px solid var(--line);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#fileBar[hidden]{display:none}#fileBar .fmsg{margin-left:10px}
+#filePath{font:13px Consolas,"Courier New",monospace}#fileDirty{color:var(--accent);margin-left:4px}
+/* フォルダの木(GR24 の T)。字下げは 1 階層 12px、フォルダの開閉の印は ▸・▾、アイコンは使わない(.sysml でないファイルは薄く出す)。
+   GR24 の P5: 木の欄はいつも置く(フォルダを開いていないときは .nofolder で案内を出す)。上の帯は 2 段(1 段目にフォルダの名前、2 段目に
+   HTML の中に書いた SVG のアイコンのボタン。文字の色で描く) */
+#tree{width:200px;min-width:120px;display:flex;flex-direction:column;border-right:1px solid var(--line);background:#fafaf8;font-size:13px;outline:none}
+#tree[hidden],#treeSplit[hidden]{display:none}
+#treeSplit{width:4px;cursor:col-resize;background:var(--line)}
+#treeHead{display:flex;flex-direction:column;gap:2px;padding:4px 6px;border-bottom:1px solid var(--line);font-weight:600}
+#treeName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#treeBtns{display:flex;flex-wrap:nowrap;justify-content:flex-end;gap:2px}
+#treeHead button.ticon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-color:transparent;background:transparent;border-radius:3px;color:#555;flex:none}
+#treeHead button.ticon:hover{background:#ecece8;border-color:#ccc}
+#treeHead button.ticon svg{fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+#tree.folded #btnFold svg{transform:scaleX(-1)}
+#treeBody{flex:1;overflow:auto;padding:2px 0}
+#treeMsg{padding:2px 6px;color:var(--accent);white-space:pre-wrap;display:flex;gap:4px;align-items:flex-start}
+#treeMsg.fail{color:var(--err)}
+#treeMsg .tmtext{flex:1;min-width:0}
+#treeMsg button{flex:none;font-size:12px;line-height:1;padding:1px 5px;border-radius:3px}
+#treeMsg button[hidden]{display:none}
+.tempty{flex:1;overflow:auto;padding:10px 8px;color:#555;font-size:12px;line-height:1.5}
+.tempty[hidden]{display:none}
+.tempty .tehead{font-weight:600;color:var(--text);font-size:13px;margin-bottom:6px}
+.tempty button{margin:2px 0 8px}
+.tempty p{margin:0 0 6px}
+#tree.nofolder #treeName,#tree.nofolder #btnNewFile,#tree.nofolder #btnNewDir,#tree.nofolder #btnReload,#tree.nofolder #btnCollapse,#tree.nofolder #treeBody{display:none}
+#tree.folded{width:28px!important;min-width:28px}
+#tree.folded #treeBody,#tree.folded #treeMsg,#tree.folded .tempty,#tree.folded #treeName,#tree.folded #treeBtns > :not(#btnFold){display:none}
+#tree.folded #treeHead{padding:4px 2px}
+#tree.folded #treeBtns{justify-content:center}
+.trow{display:flex;align-items:center;gap:2px;padding:1px 6px 1px 4px;cursor:pointer;white-space:nowrap;user-select:none}
+.trow:hover{background:#f0f0ee}
+.trow .tw{display:inline-block;width:12px;color:#777;font-size:10px;flex:none}
+.trow .nm{overflow:hidden;text-overflow:ellipsis}
+.trow .dm{color:var(--accent);margin-left:auto;padding-left:6px;font-size:10px}
+.trow .ms{color:var(--warn);margin-left:4px;font-size:11px}
+.trow.dim .nm{color:#999}
+.trow.cur{background:rgba(139,26,43,.12)}
+.trow.cur .nm{font-weight:600}
+.trow.sel{box-shadow:inset 0 0 0 1px rgba(139,26,43,.45)}
+.trow.missing .nm{text-decoration:line-through}
+.nosysml{position:absolute;inset:0;padding:16px;color:#666;background:#fff;z-index:2}
+.nosysml[hidden]{display:none}
+#hl{pointer-events:none;color:#222;background:#fff;z-index:0}
+#hl .kw{color:#8b1a2b;font-weight:600}#hl .st{color:#1a6b3a}#hl .nu{color:#1d4ed8}#hl .cm{color:#888}#hl .qn{color:#0b5c8a}
+#msg{padding:6px 10px;border-top:1px solid var(--line);font-size:13px;min-height:2.6em;max-height:14em;overflow:auto;background:#fcfcfa}
+#msg .err{color:var(--err)}
+#msg .ok{color:#2a6b2a}
+#msg .warn{color:var(--warn)}
+#msg .sec{font-weight:600;margin-top:4px}
+#msg ul{margin:2px 0 4px;padding-left:1.4em}
+#msg .bar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+#msg button{font-size:12px;padding:2px 8px}
+#view{flex:1;overflow:auto;background:#fff;position:relative}
+#view svg{display:block}
+#view.stale svg{opacity:.45}
+#view [data-id]{cursor:pointer}
+#view g.selected > rect,#view g.selected > path,#view g.selected > polyline,#view g.selected > circle{stroke:var(--accent);stroke-width:2.5}
+#view g.picked > rect,#view g.picked > path,#view g.picked > polyline,#view g.picked > circle{stroke:#d97706;stroke-width:3}
+#view.connecting{cursor:crosshair}
+.connectbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;background:#fff7e6;border-bottom:1px solid #d97706;color:#7a4300}
+.connectbar input{font:13px Consolas,"Courier New",monospace;width:12em}
+#view .empty{padding:16px;color:#666}
+/* 図・表の題の右の保存のボタン(GR13)。図の上に重ねる画面の部品で、保存する画像や印刷には出ない */
+#canvas{position:relative}
+#canvas .tbtns{position:absolute;display:flex;gap:4px;z-index:2;white-space:nowrap;width:max-content}
+#canvas .tbtns button{font-size:11px;line-height:1.2;padding:1px 7px;border-radius:3px;white-space:nowrap;flex:none}
+/* 図のボタンの行は、図の上の外側(SVG の外)に置く。図の上の余白の帯にだけ重なるので、白い下地より上に出す */
+#canvas .fbtns{position:relative;z-index:2;display:flex;gap:4px;width:max-content}
+#canvas .fbtns button{font-size:11px;line-height:1.2;padding:1px 7px;border-radius:3px;white-space:nowrap;flex:none}
+#progress{position:absolute;left:12px;right:12px;top:10px;display:none;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px 10px;font-size:12px;z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+#progress.on{display:block}
+#progress .track{height:6px;background:#eee;border-radius:3px;margin-top:4px;overflow:hidden}
+#progress .fill{height:100%;width:0;background:var(--accent);transition:width .1s}
+#edit{border-top:1px solid var(--line);background:var(--panel);padding:8px 10px;display:none;gap:6px;flex-wrap:wrap;align-items:center}
+#edit.on{display:flex}
+#edit .kind{font-weight:600;margin-right:6px}
+#edit .q{font:13px Consolas,"Courier New",monospace;color:#555}
+#edit .rename{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-basis:100%}
+#edit .rename input{font:13px Consolas,"Courier New",monospace;width:16em}
+#edit .rmsg{color:#8b1a2b}
+#edit .ops{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-basis:100%}
+#edit .opbtns,#edit .opform{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#edit .opform input[type=text]{font:13px Consolas,"Courier New",monospace;width:12em}
+#edit ul.plan{margin:0;padding-left:1.2em;flex-basis:100%;font:13px Consolas,"Courier New",monospace}
+dialog{border:1px solid #999;border-radius:6px;padding:16px 20px;max-width:760px;font-size:14px}
+dialog h2{font-size:16px;margin:12px 0 8px}
+dialog h2:first-child{margin-top:0}
+dialog pre{background:#f6f6f2;padding:8px;overflow:auto;font-size:12px;margin:0}
+dialog table{border-collapse:collapse;font-size:13px}
+dialog td,dialog th{border:1px solid #ccc;padding:3px 8px;text-align:left;vertical-align:top}
+/* 「例を読み込む」の例の選択(GR19 の U3) */
+#dlgSample button.pick{display:block;width:100%;margin:6px 0;text-align:left;padding:6px 10px}
+#dlgSample .small{color:#666;font-size:12px}
+#drop{position:absolute;inset:0;background:rgba(139,26,43,.08);border:3px dashed var(--accent);display:none;align-items:center;justify-content:center;font-size:20px;color:var(--accent);pointer-events:none}
+#drop.on{display:flex}
+.small{font-size:12px;color:#666}
+footer{font-size:11px;color:#777;padding:3px 10px;border-top:1px solid var(--line);background:var(--panel)}
+footer a{color:#777}
+/* 図・表を 1 つだけ印刷する(題の右の「PDF」。GR13)。紙はその図と同じ大きさ、余白 0(紙の指定は画面から入れる) */
+#printArea{display:none}
+@media print{
+  html,body{height:auto;overflow:visible;display:block;background:#fff}
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block}
+  #printArea .page{padding:0;margin:0;display:block;overflow:hidden}
+  #printArea svg{display:block}
+}
+/* フォルダの木の名前の入力欄・理由・右クリックのメニュー(GR24 の F) */
+.trow.tedit input{font:13px Consolas,"Courier New",monospace;width:100%;min-width:6em;padding:1px 3px;border:1px solid var(--accent);border-radius:2px}
+.twhy{padding:0 6px 2px 20px;color:var(--err);font-size:11px;white-space:normal}
+.twhy:empty{display:none}
+.trow.drop{background:rgba(139,26,43,.2)}
+.tmenu{position:fixed;z-index:20;display:flex;flex-direction:column;background:var(--panel);border:1px solid #bbb;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.2);padding:3px 0;min-width:10em}
+.tmenu button{border:0;border-radius:0;background:transparent;text-align:left;padding:3px 12px;font-size:13px}
+.tmenu button:hover{background:#f0f0ee}
+/* 木の欄の 2 つの区画「ファイル」「モデル」と、区画の境目の分割バー(GR26 の L。設計書 9.5 節の「置き場所」)。区画はそれぞれ見出しの行で
+   畳める(.sfold)。木の欄そのものを畳んだときは、両方の区画をまとめて隠す */
+/* GR26 の P5 の H: 区画の高さは画面のスクリプトが px で決める(木の欄の上の帯の下の残りの高さを、src/app/modeltree.js の sectionSizes で
+   分ける。最小の高さはそこで残す)。区画の最小の高さの CSS は外し、足りない分は区画の中のスクロールで見せる */
+#tree{overflow:hidden}
+#tree .tsec{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#tree .tsec.sfold .tsecbody{display:none}
+#tree.folded .tsec,#tree.folded .secsplit{display:none}
+#secFiles #treeBody{min-height:0}
+.tsech{display:flex;align-items:center;gap:2px;padding:1px 4px;border-bottom:1px solid var(--line);background:#f0f0ec;flex:none}
+.tsecbtn{flex:1;display:flex;align-items:center;gap:2px;border:0;border-radius:0;background:transparent;padding:2px;text-align:left;font-weight:600;font-size:12px;min-width:0}
+.tsecbtn:hover{background:#e8e8e4}
+.tsecbtn .tw{display:inline-block;width:12px;color:#777;font-size:10px;flex:none}
+.tsech button.ticon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-color:transparent;background:transparent;border-radius:3px;color:#555;flex:none}
+.tsech button.ticon:hover{background:#ecece8;border-color:#ccc}
+.tsech button.ticon svg{fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.tsecbody{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto}
+.secsplit{height:4px;cursor:row-resize;background:var(--line);flex:none}
+.secsplit[hidden]{display:none}
+/* モデルツリー(GR26 の T)。定義と使用の印は、文字の色だけに頼らず形で見分ける(定義は角の四角に「定」、使用は丸に「使」) */
+.mnote{padding:2px 6px;font-size:11px;color:var(--warn);white-space:normal;flex:none}
+.mnote[hidden]{display:none}
+.mbody{flex:1;overflow:auto;padding:2px 0;outline:none;min-height:0}
+.mbody.stale,.rpane.stale{opacity:.5}
+.mrow{display:flex;align-items:center;gap:3px;padding:1px 6px 1px 4px;cursor:pointer;white-space:nowrap;user-select:none}
+.mrow:hover{background:#f0f0ee}
+.mrow .tw{display:inline-block;width:12px;color:#777;font-size:10px;flex:none}
+/* GR26 の P5 の T: 印・名前・型(.mty)と多重度(.mmu)・種類(.mkd)の順。幅が足りないときは、まず種類を、次に型と多重度を省略の記号で切る
+   (縮む割合 flex-shrink を種類 1000・型と多重度 10 にする)。GR26 の P6 の Y: 型か多重度を出す項目(.mrow.typed)では、型を押せるよう型に 3em・
+   多重度に 2em の最小の幅を残し、名前が長いときはその分だけ名前(縮む割合 1)を切る。型も多重度もない項目は、名前を縮めない */
+.mrow .nm{flex:0 0 auto}
+.mrow.typed .nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .mty,.mrow .mmu{flex:0 10 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .mty{min-width:3em}
+.mrow .mmu{min-width:2em}
+.mrow .nm.unnamed{font-style:italic;color:#555}
+.mrow.sel{background:rgba(139,26,43,.12)}
+.mrow.sel .nm{font-weight:600}
+.mdu{flex:none;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;font-size:9px;line-height:1;border:1px solid #666;color:#333;background:#fff}
+.mdu.def{border-radius:0}
+.mdu.use{border-radius:50%}
+.mty{color:#0b5c8a}
+.mty.go{cursor:pointer;text-decoration:underline dotted}
+.mty.bad{color:var(--warn)}
+.mmu{color:#555}
+.mkd{color:#888;font-size:11px;margin-left:4px;flex:0 1000 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mempty,.rempty{padding:6px 8px;color:#666;font-size:12px;white-space:normal}
+.mmsg{padding:0 6px;color:var(--accent);font-size:11px;white-space:normal;flex:none}
+.mmsg:empty{display:none}
+/* 参照箇所(GR26 の R)。モデルツリーの子要素と取り違えないよう、別の欄に、色の違う下地と左の矢印で出す */
+.rpane{flex:0 1 auto;display:flex;flex-direction:column;border-top:2px solid #c9b98f;background:#fbf7ee;min-height:0;overflow:hidden}
+.rhead{padding:3px 6px;font-weight:600;font-size:12px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+.rbody{overflow:auto;min-height:0;flex:1 1 auto}
+.rrole{padding:2px 6px 0;font-size:11px;font-weight:600;color:#555}
+/* GR26 の P5 の H: 参照箇所の行は 2 段(上の段に役割の印と所属、下の段にファイルの相対パスと行)。所属が長いときは、先頭を省略の記号にして
+   末尾を残す(direction: rtl。中身の bdi は左から右の向きにして、文字の並びを崩さない) */
+.rrow{display:flex;flex-direction:column;padding:1px 6px 2px 10px;cursor:pointer;white-space:nowrap;font-size:12px;min-width:0}
+.rtop{display:flex;gap:4px;min-width:0}
+.rrow:hover{background:#f0ebe0}
+.rar{color:var(--accent);flex:none}
+.rown{overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 0;direction:rtl;text-align:left;white-space:nowrap}
+.rown bdi{direction:ltr;unicode-bidi:isolate}
+.rloc{color:#777;padding-left:16px;overflow:hidden;text-overflow:ellipsis;min-width:0}

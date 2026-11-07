@@ -1,0 +1,241 @@
+<!-- 「書き方」のダイアログの中身(GR4 指示書 6.3 節)。ビルドが文字列 HELP_HTML として画面のスクリプトに入れる。例の中の < > & はエスケープしてある -->
+<h2>書き方(SysML v2 のテキスト表記)</h2>
+<p>SysML 2.0 正式版のテキスト表記を書くと、右に図が出ます。上の「ビュー」で、相互接続ビュー(部品・ポート・接続の図)、一般ビュー(定義・使用と、その間の特殊化・型付けなどの関係の図)、アクションフロービュー(手順の図)、状態遷移ビュー(状態機械の図)、シーケンスビュー(部品の間のやりとりの図)と、グリッドビュー(要素と関係を格子に並べた 4 つの表)を切り替えます。独自の記法はありません。日本語の名前は単一引用符で囲みます(図では引用符を外して表示します)。</p>
+<table>
+<tr><th>書きたいもの</th><th>書き方の例</th><th>図</th></tr>
+<tr><td>部品の定義と使用</td><td><pre>part def 'Arduino Uno';
+part '測定ボード' : 'Arduino Uno';</pre></td><td>定義は角の尖った四角、使用は角の丸い四角。使用の中に書いた部品は、箱の中に入れ子で描く</td></tr>
+<tr><td>ポートと向き</td><td><pre>port def 'シリアル';
+part def 'Arduino Uno' {
+    in port 'A0';
+    out port 'D8';
+    port 'シリアル端子' : 'シリアル';
+}</pre></td><td>箱の辺の小さな四角。<code>in</code> は左の辺(矢印は内向き)、<code>out</code> は右の辺(外向き)、<code>inout</code> と向きのないものは、つながる相手の側(なければ上)。型の定義のポートは、使用の箱にも <code>^</code> を付けて描く</td></tr>
+<tr><td>共役ポート</td><td><pre>port 'シリアル端子' : ~'シリアル';</pre></td><td>型の名前の前に <code>~</code>。中の向きのある特徴の向きが逆になる</td></tr>
+<tr><td>接続</td><td><pre>connect '出力ボード'.'D3' to '冷却ファン'.'制御';</pre></td><td>ポートどうしを結ぶ実線。<code>部品.ポート</code> の形で端を書く</td></tr>
+<tr><td>インターフェース</td><td><pre>interface def 'UART接続' {
+    end '送信側' : 'シリアル';
+    end '受信側' : ~'シリアル';
+}
+interface 'ボード間通信' : 'UART接続'
+    connect '測定ボード'.'シリアル端子' to '出力ボード'.'シリアル端子';</pre></td><td>«interface» と名前の付いた実線</td></tr>
+<tr><td>フロー</td><td><pre>flow of '電圧値' from '温度計'.'出力' to '測定ボード'.'A0';</pre></td><td>塗りつぶした三角の矢じりの実線。<code>of</code> の後ろが流れるものの型</td></tr>
+<tr><td>結合</td><td><pre>bind '外側'.'p' = '内側'.'p';</pre></td><td>「=」の付いた実線</td></tr>
+<tr><td>図にする範囲</td><td><pre>view '全体図' {
+    expose '見守りシステム';
+    expose '見守りシステム'::**;
+}</pre></td><td><code>view</code> があれば、<code>expose</code> で公開した要素だけを描く。<code>X</code> は X だけ、<code>X::*</code> は X の中の要素、<code>X::**</code> は中を入れ子までのすべて。<code>view</code> がなければ、上の「範囲」で部品の定義・使用を選ぶ</td></tr>
+<tr><td>描く要素の絞り込み</td><td><pre>view 'ポートの図' {
+    expose '見守りシステム'::**;
+    filter @SysML::PortUsage;
+}</pre></td><td><code>filter</code> は <code>@種類名</code> と <code>@利用者のメタデータ</code> の形だけを反映する。それ以外の条件と <code>render</code> は反映せず、診断に出す</td></tr>
+<tr><td>定義・使用と型付け<br>(一般ビュー)</td><td><pre>part def 'Arduino Uno';
+part '測定ボード' : 'Arduino Uno';</pre></td><td>定義は角の尖った四角、使用は角の丸い四角。<code>:</code> の型付けは、使用から型の定義への、白抜きの三角の矢じりと 2 つの点の付いた実線。関係の向きに沿って、上から段に並べる</td></tr>
+<tr><td>特殊化(<code>:&gt;</code>)</td><td><pre>part def 'センサ';
+part def '温度センサ' :&gt; 'センサ';</pre></td><td>特殊化した定義から元の定義への、白抜きの三角の矢じりの実線</td></tr>
+<tr><td>部品の中の部品と、属性・ポート</td><td><pre>part '見守りシステム' {
+    attribute '定格電圧';
+    part '温度計' : '温度センサ';
+}</pre></td><td>中の部品は別の箱にして、持ち主の側に黒いひし形の付いた実線で結ぶ。属性・ポート・接続などは、持ち主の箱の中の区画(attributes・ports など)に文字で出す</td></tr>
+<tr><td>一般ビューの範囲</td><td><pre>view '構成の図' : StandardViewDefinitions::GeneralView {
+    expose '見守りシステム';
+    expose '見守りシステム'::*;
+    expose 'Arduino Uno';
+    expose 'Arduino Uno'::*;
+}</pre></td><td>最初の <code>view</code> の型が <code>GeneralView</code> なら、開いたときに一般ビューで表示する。<code>view</code> がなければ、「範囲」でパッケージ(パッケージのないテキストでは、テキスト全体)を選ぶ</td></tr>
+<tr><td>要求と <code>satisfy</code><br>(一般ビュー)</td><td><pre>requirement def '高温の警報' {
+    doc /* 温度が上限を超えたら、ブザーを鳴らす */
+    subject '対象';
+    attribute '上限' : '温度値';
+}
+requirement '警報の要求' : '高温の警報';
+satisfy '警報の要求' by '見守りシステム';</pre></td><td>要求の定義は角の尖った四角、要求は角の丸い四角。<code>doc</code> は注の記号。<code>satisfy 要求 by 部品;</code> は、部品から要求への «satisfy» の付いた開いた矢じりの実線(両方が図にあるとき。<code>by</code> がなければ持ち主から)</td></tr>
+<tr><td>要求の中の <code>require</code>・<code>assume</code>・<code>frame</code></td><td><pre>requirement def '質量の要求' {
+    require '上限以下';
+    assume '乾いた路面';
+    frame '費用';
+}</pre></td><td>制約・関心事を名前で参照するだけなら、要求から相手への «require»・«assume»・«frame» の付いた実線。<code>require constraint 名前 { … }</code> のように宣言すると、«require constraint» の箱と黒いひし形の線</td></tr>
+<tr><td>ユースケースと行為者</td><td><pre>part def '利用者';
+use case def '温度を見守る' {
+    subject '対象';
+    actor '使う人' : '利用者';
+    include '記録を見る';
+}
+use case '記録を見る';</pre></td><td>ユースケースは四角(定義は角の尖った、使用は角の丸い)。<code>actor</code> は棒人間、<code>subject</code> は «subject» の小さな箱で、ユースケースと実線で結ぶ。<code>include ユースケース;</code> は «include» の付いた実線</td></tr>
+<tr><td>計算・制約の引数</td><td><pre>calc def '速さ' {
+    in '距離';
+    in '時間';
+    return '速さ';
+}</pre></td><td>引数は箱の辺の小さな四角(<code>in</code> は左、<code>out</code> は右、ほかは上)。<code>return</code> は箱の中の result の区画に書く</td></tr>
+<tr><td>状態の定義と状態<br>(状態遷移ビュー)</td><td><pre>state def '測定ボードの動き' {
+    entry; then '待機';
+    state '待機';
+    state '測定';
+}</pre></td><td>状態の定義は角の尖った四角、状態は角の丸い四角。<code>entry; then 状態;</code> で最初の状態を示す(黒い小さな四角からの矢印)。状態の中に状態を書くと、箱の中に入れ子で描く</td></tr>
+<tr><td>遷移(<code>accept</code>・<code>if</code>・<code>do</code>)</td><td><pre>state '待機';
+accept '指示' : '測定指示' then '測定';
+state '測定';
+accept '通知' : '高温通知'
+    if '温度' &gt; 30.0
+    do action '記録する'
+    then '警報';
+transition '解除' first '警報' then '待機';</pre></td><td>開いた矢じりの実線。状態のすぐ後ろに書いた <code>accept … then …</code> は、その状態からの遷移。線の上に「引き金 [ガード] / 効果」を書く。<code>transition 名前 first 始点 then 終点;</code> は始点をはっきり書く形</td></tr>
+<tr><td>状態の中の動作(<code>entry</code>・<code>do</code>・<code>exit</code>)</td><td><pre>state '警報' {
+    entry action 'ブザーを鳴らす';
+    do action '点滅する';
+    exit action 'ブザーを止める';
+}</pre></td><td>状態の箱の中の entry・do・exit の区画に、書いたとおりの文字で出す。本体 <code>{ … }</code> に行動や <code>then</code> を書くと、区画の中に手順の図を描く</td></tr>
+<tr><td>部品の状態機械(<code>exhibit state</code>)</td><td><pre>part def 'Arduino Uno' {
+    exhibit state '動作' : '測定ボードの動き';
+}</pre></td><td>部品の定義が、その状態機械で動くことを示す。相互接続ビューでは部品の定義の箱の「exhibit states」の区画に出る</td></tr>
+<tr><td>状態遷移ビューの範囲</td><td><pre>view '動作の図' : StandardViewDefinitions::StateTransitionView {
+    expose '測定ボードの動き';
+    expose '測定ボードの動き'::**;
+}</pre></td><td>最初の <code>view</code> の型が <code>StateTransitionView</code> なら、開いたときに状態遷移ビューで表示する。<code>view</code> がなければ、「範囲」で状態・遷移を持つ状態の定義・使用を選ぶ</td></tr>
+<tr><td>手順(<code>action</code>・<code>first</code>・<code>then</code>)<br>(アクションフロービュー)</td><td><pre>action def '測定の手順' {
+    first start;
+    then action '温度を読む';
+    then action '記録する';
+    then done;
+}</pre></td><td>行動の定義は角の尖った四角、行動は角の丸い四角。<code>first start;</code> は黒丸(開始)、<code>then done;</code> は二重丸(終了)。<code>then</code> は前の行動からの破線の矢印。<code>first A then B;</code> は始点をはっきり書く形</td></tr>
+<tr><td>分岐と合流(<code>decide</code>・<code>if</code>・<code>else</code>・<code>merge</code>)</td><td><pre>first '温度を読む' then '高温か';
+decide '高温か';
+    if '温度' &gt; 30.0 then '通知する';
+    else '待つ';
+action '通知する';
+action '待つ';
+first '通知する' then '合流';
+first '待つ' then '合流';
+merge '合流';</pre></td><td>ひし形。<code>decide</code> の後ろの <code>if 条件 then 行動;</code> は「[条件]」の付いた破線の矢印、<code>else 行動;</code> は「else」の付いた破線の矢印</td></tr>
+<tr><td>並行(<code>fork</code>・<code>join</code>)</td><td><pre>first start then '分ける';
+fork '分ける';
+first '分ける' then 'A';
+first '分ける' then 'B';
+join 'まとめる';
+first 'A' then 'まとめる';
+first 'B' then 'まとめる';</pre></td><td>黒い太い棒。<code>fork</code> から出た行動は並行に動き、<code>join</code> で揃う</td></tr>
+<tr><td>行動の間のフロー(<code>flow</code>)</td><td><pre>action '温度を読む' { out attribute '温度' : '温度値'; }
+action '通知する' { in attribute '温度' : '温度値'; }
+flow '温度を読む'.'温度' to '通知する'.'温度';</pre></td><td>行動の引数(<code>in</code> は左の辺、<code>out</code> は右の辺の小さな四角)を結ぶ、塗りつぶした三角の矢じりの実線</td></tr>
+<tr><td>部品が行う行動(<code>perform</code>)</td><td><pre>action '測定' : '測定の手順';
+part '測定ボード' {
+    perform '測定'.'温度を読む';
+}</pre></td><td>手順の中の行動を部品が行うことを示す。行動の定義(<code>action def</code>)の中の行動は、その定義を型にした行動(上の <code>'測定'</code>)を通して <code>行動.中の行動</code> の形で指す(定義の名前から書くと意味エラーになる)。アクションフロービューで手順を描くと、部品ごとの列(破線の縦長の箱。上に «performer» と部品の名前)に分けて描く</td></tr>
+<tr><td>アクションフロービューの範囲</td><td><pre>view '手順の図' : StandardViewDefinitions::ActionFlowView {
+    expose '測定の手順';
+    expose '測定の手順'::**;
+}</pre></td><td>最初の <code>view</code> の型が <code>ActionFlowView</code> なら、開いたときにアクションフロービューで表示する。<code>view</code> がなければ、「範囲」で行動・継承・フローを持つ行動の定義・使用を選ぶ</td></tr>
+<tr><td>やりとり(<code>occurrence def</code>・<code>event occurrence</code>・<code>message</code>)<br>(シーケンスビュー)</td><td><pre>occurrence def '高温時のやりとり' {
+    part '測定' : 'Arduino Uno' {
+        event occurrence '高温を検知';
+    }
+    part '出力' : 'Arduino Nano' {
+        event occurrence '通知を受信';
+        then event occurrence '鳴動を指示';
+    }
+    part '警報ブザー' : 'ブザー' {
+        event occurrence '鳴動開始';
+    }
+    message '通知' of '高温通知'
+        from '測定'.'高温を検知' to '出力'.'通知を受信';
+    message '鳴動'
+        from '出力'.'鳴動を指示' to '警報ブザー'.'鳴動開始';
+}</pre></td><td>部品(頭)を上に横一列に並べ、破線の生存線を下へ伸ばす。<code>message 名前 of 型 from 部品.事象 to 部品.事象;</code> は送り手から受け手への矢印。部品の中の <code>event occurrence</code> は、その部品の上で起きる事象で、<code>then</code> でつないだ事象の順に、メッセージを上から並べる(順が決まらなければ書いた順)。端が <code>部品.入れ子の部品.事象</code> のように深いときは、生存線の上の黒丸と、その先の名前を描く</td></tr>
+<tr><td>シーケンスビューの範囲</td><td><pre>view 'やりとりの図' : StandardViewDefinitions::SequenceView {
+    expose '高温時のやりとり';
+    expose '高温時のやりとり'::**;
+}</pre></td><td>最初の <code>view</code> の型が <code>SequenceView</code> なら、開いたときにシーケンスビューで表示する。<code>view</code> がなければ、「範囲」でメッセージを持つオカレンス・部品の定義・使用を選ぶ</td></tr>
+<tr><td>グリッドビューの範囲</td><td><pre>view '部品と要求の表' : StandardViewDefinitions::GridView {
+    expose '見守りシステム'::**;
+    expose '要求'::**;
+}</pre></td><td>型が <code>GridView</code> の <code>view</code> を開くと、グリッドビューで表示する。<code>view</code> がなければ、「範囲」でパッケージ(パッケージのないテキストでは、テキスト全体)を選ぶ</td></tr>
+<tr><td>注</td><td><pre>doc /* 説明 */
+comment about '測定ボード' /* 注 */</pre></td><td>右上の角を折った四角と、注の対象への破線</td></tr>
+<tr><td>ファイルに分ける(フォルダを開く)</td><td><pre>// 部品.sysml
+package '部品' {
+    part def 'ランプ';
+}
+// 回路.sysml
+package '回路' {
+    private import '部品'::*;
+    part '豆電球' : 'ランプ';
+}</pre></td><td>上の帯の「フォルダを開く」で、フォルダの中の <code>.sysml</code> をまとめて 1 つのモデルとして開く(下のフォルダも読む。名前が <code>.</code> で始まるフォルダの中は読まない)。ほかのファイルのパッケージの要素は、<code>import</code> で取り込むか、<code>'部品'::'ランプ'</code> のように修飾名で指す。テキスト欄の左のフォルダの木で、表示して書き換えるファイルを選ぶ(Ctrl+Z の取り消しはファイルごと)。木の右クリック(F2・Delete・Ctrl+X・Ctrl+C・Ctrl+V)とドラッグで、ファイルとフォルダを作る・名前を変える・消す・移す・写す(Chrome・Edge でフォルダを選ぶ画面かドロップで開いたときは、その場でディスクに入れる。消したファイルはごみ箱に入らない)。「保存」は、Chrome・Edge でフォルダを選ぶ画面かドロップで開いたときは書き換えたファイルだけをそのフォルダに上書きし(最初の保存で書き込みの許可を求める)、それ以外はフォルダの木のすべてのファイルと空のフォルダをまとめた zip を保存する。図からの名前の変更と削除は、ほかのファイルの参照も書き換える(1 回の Ctrl+Z で、すべてのファイルを戻す)</td></tr>
+<tr><td>ファイルに分けるときのパッケージの名前</td><td><pre>// Parts・Items・Ports などの名前にしない
+package '部品の一覧' {
+    part def 'センサ';
+}</pre></td><td>パッケージに、標準ライブラリの根の名前空間と同じ名前(<code>Parts</code>・<code>Items</code>・<code>Ports</code> など)を付けない(ほかのファイルから指すと、標準ライブラリのものと区別できず曖昧になる)</td></tr>
+</table>
+<p>「例を読み込む」では、入門用の短い例(電池・スイッチ・ランプの回路)と、機能紹介用の例(見守りシステム)のどちらかを選べます。</p>
+<h2>診断の見方</h2>
+<ul>
+<li><b>構文エラー</b>: テキスト表記として読めない箇所。直すまで、最後に正しく描けた図を薄く表示する。</li>
+<li><b>意味エラー</b>: テキスト表記としては読めるが、SysML v2 の規則に反している箇所(名前が見つからない、区別できない名前、再定義の向きの食い違いなど)。項目の番号は、書き方の説明ではなく、規格の制約に対応する。図は描く。</li>
+<li><b>警告</b>: 書き間違いのおそれがあるため、意図を確かめてほしい箇所。誤りとは限らず、意図した書き方ならそのままでよい。W1 は使用の型の種類が合わないもの(例: <code>action def A; part p : A;</code> の部品の型に行動の定義)、W2 は部品・ポートの使用で、型に書いた名前が使用の名前と同じもの(例: <code>part 'ブザー' : 'ブザー';</code>)。図は描く。</li>
+<li><b>未検査</b>: 標準ライブラリの名前など、このアプリが中身を知らない名前。誤りとは限らないが、正しいことも確かめていない。</li>
+<li><b>図の診断</b>: 描いていない要素(ほかのビューの要素、描けない接続)や、反映していない <code>filter</code>・<code>render</code>。</li>
+<li>「コピー」で、診断とテキストを、生成 AI に渡す修正依頼の文としてコピーできる。</li>
+</ul>
+<h2>生成 AI に書かせるときの指示文の例</h2>
+<pre>次のシステムを SysML v2 のテキスト表記(SysML 2.0 正式版)で書いてください。
+部品の定義(part def)と使用(part)、ポート(port。向きは in・out)、ポートの定義(port def)、
+接続(connect … to …)、インターフェース(interface)、フロー(flow of … from … to …)を使ってください。
+日本語の名前は単一引用符で囲んでください(例: 'Arduino Uno'、'温度センサ')。
+部品の使用の名前は、型(定義)の名前と別にしてください。
+ポートの使用の名前も、ポートの定義(型)の名前と別にしてください。
+import には private を付けてください(例: private import ScalarValues::*;)。可視性のない import は構文エラーになります。
+最後に view を 1 つ書き、expose でシステム全体を公開してください(expose X; と expose X::**;)。
+測定ボードのプログラムの動きを状態の定義(state def)で書き、最初の状態を entry; then …; で、遷移を状態の直後の accept … then …; で書き、測定ボードの部品の定義から exhibit state で示してください。
+測定ボードのプログラムの手順を行動の定義(action def)で書き、first start; から then で行動をつなぎ、分岐は decide と if … then …; else …; で書いてください。
+要求は requirement def と requirement で書き、本文を doc /* … */ に書いてください。要求を満たす部品は satisfy 要求 by 部品; で書いてください。
+ボードの間のやりとりをオカレンスの定義(occurrence def)で書き、中の部品ごとに event occurrence で事象を書き(順は then でつなぐ)、message 名前 of 型 from 部品.事象 to 部品.事象; でメッセージを書いてください。</pre>
+<p>図の要素をクリックすると、テキストの該当箇所が選ばれます。</p>
+<h2>生成 AI 向けプロンプト</h2>
+<p>上の指示文の例を、そのまま生成 AI に渡せる形にまとめたものです。「コピー」でコピーし、最後の「システム:」の後ろに、作りたいシステムの説明を書き足して渡します。返ってきたテキストを左のテキスト欄に貼ると、図になります。どんな形のテキストが返ればよいかは、「例を読み込む」の入門用の例が短い手本になります。診断欄にエラーや警告(W1・W2)が出たら、「修正依頼をコピー」で生成 AI に渡せます。修正依頼では、エラーは直し、警告は意図の確認事項として、書き間違いと判断できるものだけ直し、判断できないものは質問として挙げるよう頼みます。</p>
+<p><button type="button" data-copy="aiPrompt">コピー</button></p>
+<pre id="aiPrompt">あなたは SysML v2 のテキスト表記(SysML 2.0 正式版)でモデルを書きます。次の決まりを守り、最後の「システム:」に書くシステムのモデルを、1 つのパッケージ(package)に入れた 1 つのテキストとして書いてください。説明の文は付けず、テキストだけを出してください。
+
+書き方の決まり:
+- 日本語の名前は単一引用符で囲んでください(例: 'Arduino Uno'、'温度センサ')。
+- 部品の使用の名前は、型(部品の定義)の名前と別にしてください(例: part '測定ボード' : 'Arduino Uno';)。
+- ポートの使用の名前も、ポートの定義(型)の名前と別にしてください(例: port 'シリアル端子' : 'シリアル';)。
+- import には private を付けてください(例: private import ScalarValues::*;)。可視性のない import は構文エラーになります。
+- 標準ライブラリの型と単位は使ってかまいません。数の属性の型には ScalarValues の型(Real・Integer・Boolean・String)を、量の属性の型には ISQ の量の型(例: ElectricPotentialValue、ThermodynamicTemperatureValue、DurationValue)を、値の単位には SI の単位(例: 5 [V])を使い、パッケージの中に private import ScalarValues::*; private import ISQ::*; private import SI::*; を書いてください(例: attribute '供給電圧' : ElectricPotentialValue = 5 [V];)。
+- 使用の型には、その種類に合う定義を使ってください(部品には部品の定義か項目の定義、ポートにはポートの定義、行動には行動の定義など)。型の種類が合わないものと、型に書いた名前が使用の名前と同じものは、このアプリが「警告」として示します(書き間違いのおそれがあり、意図を確かめる箇所)。
+- SysML v1 の書き方や、独自の記法は使わないでください。
+
+書くもの:
+- 部品の定義(part def)と使用(part)、ポート(port。向きは in・out)、ポートの定義(port def)、接続(connect … to …)、インターフェース(interface)、フロー(flow of … from … to …)を使ってください。
+- ボード(マイコン)のプログラムの動きを状態の定義(state def)で書き、最初の状態を entry; then …; で、遷移を状態の直後の accept … then …; で書き、そのボードの部品の定義から exhibit state で示してください。
+- ボードのプログラムの手順を行動の定義(action def)で書き、first start; から then で行動をつなぎ、分岐は decide と if … then …; else …; で書いてください。
+- 手順を行う部品は、部品の使用の中に perform action 名前 : 行動の定義; で書いてください。
+- 要求は requirement def と requirement で書き、本文を doc /* … */ に書いてください。要求を満たす部品は satisfy 要求 by 部品; で書いてください。
+- ボードの間のやりとりをオカレンスの定義(occurrence def)で書き、中の部品ごとに event occurrence で事象を書き(順は then でつなぐ)、message 名前 of 型 from 部品.事象 to 部品.事象; でメッセージを書いてください。
+- 最後に view を 1 つ書き、expose でシステム全体を公開してください(expose X; と expose X::**;)。
+
+システム:
+</pre>
+<h2>グリッドビューの見方</h2>
+<p>グリッドビュー(SysML 2.0 の 9.2.20.2.5 節の GridView。要素と関係を格子に並べて示すビュー)では、次の 4 つの表をこの順に縦に並べて出します。</p>
+<ul>
+<li><b>部品の一覧</b>: システムを作る部品。部品の使用(入れ子の部品を含む)ごとに、型・持ち主・多重度・説明(<code>doc</code>)。</li>
+<li><b>ポートと接続先</b>: 部品どうしのつながり。部品ごとのポート(型の定義から受け継いだものを含む)と向き・型、接続先(相手の部品.ポート)、つなぎ方(<code>connect</code>・<code>interface</code>・<code>flow</code>・<code>bind</code> など)。Arduino のピンの割り当て表に使える。</li>
+<li><b>要求と満たす部品</b>: 要求と、それをどの部品が満たし、どう検証するか。要求の定義と使用ごとに、型・本文(<code>doc</code>)・満たす部品(<code>satisfy … by …</code>)・検証(<code>verify</code>)。</li>
+<li><b>機能の割り当て表</b>: どの行動(機能)をどの部品が受け持つか。行が行動、列が部品のマトリクス。<code>perform</code>(部品の中に書く)か <code>allocate 行動 to 部品;</code> で割り当てたものに印が付く。</li>
+<li>1 つのセルに値が 2 つ以上あるときは「、」で区切る。行のない表は「該当なし」と出す。行をクリックすると、その要素の宣言がテキストで選ばれる(機能の割り当て表は、印のセルで <code>perform</code>・<code>allocate</code> の宣言)。</li>
+</ul>
+<h2>モデルツリーと参照箇所</h2>
+<ul>
+<li>テキスト欄の左の木の欄は、上の「ファイル」(フォルダの木)と下の「モデル」(モデルツリー)の 2 つの区画に分かれます(1 つのファイルのときも)。「モデル」の区画の下に「参照箇所」の欄があります。区画は見出しの行で畳めます。分割バーは 2 つあり、区画の境目のもので区画の高さを、モデルツリーと参照箇所の欄の境目のもので参照箇所の欄の高さを変えられます。変えた高さは、窓の大きさを変えたときやフォルダを開いた・閉じたときも、同じ割合で付け直します(どの区画と欄にも最小の高さを残します)。</li>
+<li>「モデル」には、読み込んだファイルの要素(パッケージ・定義・使用と、遷移・継承・接続・<code>send</code>・<code>accept</code> など)を、持ち主の中に入れた形で並べます。ファイルの境目は木に出さず、標準ライブラリの要素は並べません。行動の引数(<code>send</code> の送るもの・宛先など、名前を宣言していないもの)、式を値に持つだけの名前のない特徴、名前のない特徴の連鎖も並べません。</li>
+<li>項目には、定義(四角に「定」)か使用(丸に「使」)かの印、名前(名前のない要素は「遷移 A → B」「接続 電池.正極 – スイッチ.入口」のような要約)、使用の型と多重度、種類を出します。幅が足りないときは、種類、型と多重度の順に切ります。型を出す項目では型に 3 文字ほどの幅を残し、名前が長ければ名前を切ります。マウスを載せると修飾名・種類・型と多重度・ファイルと行を出します。名前のない要素は、修飾名の中では要約をかっこで囲んで書きます(例: 「Flashlight::(接続 電池.正極 – スイッチ.入口)」。要約がなければ「(名前なし)」)。</li>
+<li>項目を押すと、その要素が書かれているファイルを出し、字句を選びます(名前を宣言した要素は名前、<code>perform drive;</code> のように名前の代わりに参照を書いた要素はその参照の名前、それ以外の名前のない要素は宣言の始まりの字句)。選んだ字句が見えるよう、縦と横に送ります(診断のクリックも同じ)。書き換えていたファイルの書き換えと取り消しの履歴は残ります。使用の型を押すと型の定義へ移ります(型が 2 つ以上なら一覧から選びます。標準ライブラリ・未検査・曖昧の型には移りません)。</li>
+<li>項目を選ぶと、下の「参照箇所」に、その要素を参照している箇所(型付け・特殊化・接続の端・遷移の元と先など)を、役割ごとに、参照している要素(所属)とファイルと行の 2 段で出します。行を押すと、その箇所へ移ります。未検査・曖昧の参照は入りません。</li>
+<li>解析し直した後も、同じ要素の開閉と選択を保ちます。名前を変えた要素は別の要素として扱います(選択が外れ、参照箇所の欄は空になります)。テキストを書き換えてから解析が終わるまでは、モデルツリーと参照箇所を薄く出し、押しても移りません。</li>
+</ul>
+<h2>開く・保存</h2>
+<ul>
+<li>「開く」(またはファイルを画面に置く)で開けるのは <code>.sysml</code> のファイルだけです。</li>
+<li>「保存」で、テキストを <code>.sysml</code> で保存します。テキストが正本で、図の画像にはテキストを入れません。</li>
+<li>図と表は、ボタンで 1 つずつ保存します。図は図の上の「SVG」「PNG」「PDF」、表は表の題の右の「コピー」(タブ区切りの文字。表計算ソフトや Word の表に貼れる)「SVG」「PNG」「PDF」。表の画像には題を入れません。「PDF」は図・表と同じ大きさの紙で印刷するので、印刷の画面で「PDF に保存」を選びます(Chrome・Edge で使う)。</li>
+</ul>
+<form method="dialog"><button>閉じる</button></form>

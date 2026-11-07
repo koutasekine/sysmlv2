@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  SysML v2 — SysML v2 のテキスト表記から、規格の図表記に沿った図を作る単一 HTML ツール
+  https://sysmlv2.sapp.jp
+
+  MIT License
+  Copyright (c) 2026 Kouta Sekine
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+  パーサーと内蔵する名前・種類の表は、SysML 2.0・KerML 1.0 の仕様書本文から作った(仕様書冒頭の許諾条項に基づく)。
+  このファイルは外部ライブラリを使わず、データをどこにも送信しません。ネットワークなしで動きます。
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; style-src 'unsafe-inline'; img-src blob: data:; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<title>SysML v2</title>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+<header>
+  <h1>SysML v2</h1>
+  <button id="btnNew">新規</button>
+  <label class="btn">開く<input type="file" id="fileOpen" accept=".sysml" style="display:none"></label>
+  <button id="btnFolder" title="フォルダの中の .sysml をまとめて 1 つのモデルとして開く(下のフォルダも読む。名前が . で始まるフォルダの中は読まない)">フォルダを開く</button><input type="file" id="dirOpen" webkitdirectory multiple style="display:none">
+  <button id="btnSave">保存</button>
+  <label>ビュー <select id="viewKind">
+    <option value="general" selected>一般</option>
+    <option value="interconnection">相互接続</option>
+    <option value="action-flow">アクションフロー</option>
+    <option value="state-transition">状態遷移</option>
+    <option value="sequence">シーケンス</option>
+    <option value="grid">グリッドビュー</option>
+  </select></label>
+  <label>範囲 <select id="scope"><option value="">(処理中)</option></select></label>
+  <button id="btnAppendView" disabled title="描いている範囲を view として、テキストに書き足す">view を書き足す</button>
+  <span class="sp"></span>
+  <button id="btnSample">例を読み込む</button>
+  <button id="btnHelp">書き方</button>
+</header>
+<main>
+  <div id="left">
+    <div id="tree" tabindex="0">
+      <div id="treeHead"><span id="treeName"></span><span id="treeBtns"><button id="btnNewFile" class="ticon" title="新しいファイル(選んだフォルダの中に作る。名前が .sysml で終わればモデルに入る)" aria-label="新しいファイル"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 14.5H3.5v-13H9l3.5 3.5V8M9 1.5V5h3.5M12 10v5M9.5 12.5h5"/></svg></button><button id="btnNewDir" class="ticon" title="新しいフォルダ(選んだフォルダの中に作る)" aria-label="新しいフォルダ"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 13.5H1.5v-10H6L7.5 5h7v3.5M12 10v5M9.5 12.5h5"/></svg></button><button id="btnReload" class="ticon" title="フォルダの木をディスクから読み直す" aria-label="フォルダの木をディスクから読み直す"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M12.5 1.5v3h-3"/></svg></button><button id="btnCollapse" class="ticon" title="すべて折りたたむ" aria-label="すべて折りたたむ"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M5 4.5v-2h8.5V11h-2M2.5 5h9v9h-9zM4.5 9.5h5"/></svg></button><button id="btnFold" class="ticon" title="フォルダの木を畳む" aria-label="フォルダの木を畳む" aria-expanded="true"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 2.5h13v11h-13zM6 2.5v11M11.5 6 9.5 8l2 2"/></svg></button></span></div>
+      <div id="treeBody"></div>
+      <div id="treeMsg" class="small"></div>
+    </div>
+    <div id="treeSplit"></div>
+    <div id="leftMain">
+      <div id="fileBar" hidden><span id="filePath"></span><span id="fileDirty"></span></div>
+      <div id="editor"><pre id="hl" aria-hidden="true"></pre><textarea id="src" spellcheck="false" placeholder="ここに SysML v2 のテキスト表記を書くと、右に選んだビューの図が出ます。「例を読み込む」で例を、「書き方」で書き方を見られます。"></textarea></div>
+      <div id="msg"></div>
+    </div>
+  </div>
+  <div id="splitter"></div>
+  <div id="right">
+    <div id="view"><div id="progress"><span id="progressText">解析中</span><div class="track"><div class="fill" id="progressFill"></div></div></div><div id="canvas"></div><div id="drop">ファイルを置くと開きます(.sysml)</div></div>
+    <div id="edit"></div>
+  </div>
+</main>
+<footer>SysML v2 — SysML v2 のテキスト表記から規格の図表記に沿った図を作ります。単一 HTML、データはどこにも送信されません。MIT License, Copyright (c) 2026 Kouta Sekine. <a href="https://sapp.jp" target="_blank" rel="noopener">S Apps</a></footer>
+
+<dialog id="dlgHelp"></dialog>
+<dialog id="dlgSample"></dialog>
+<div id="printArea"></div>
+<script>
+/*@@SCRIPT@@*/
+</script>
+</body>
+</html>
