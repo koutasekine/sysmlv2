@@ -1,0 +1,306 @@
+{
+ "generatedBy": "node tools/pilot-runner/cases/make_cases.mjs",
+ "cases": [
+  {
+   "id": "base_ok",
+   "row": "base",
+   "purpose": "基準: 正しい最小の入力",
+   "predict": "accept",
+   "expectType": null
+  },
+  {
+   "id": "base_ng",
+   "row": "base",
+   "purpose": "基準: 構文エラーのある最小の入力(閉じ波括弧がない)",
+   "predict": "reject",
+   "expectType": null
+  },
+  {
+   "id": "d1_body_kerml_feature",
+   "row": 1,
+   "purpose": "select 式の本体に KerML の feature 宣言を書く。本文(KerML の FunctionBodyPart)なら受理、CalculationBody なら拒否",
+   "predict": "reject",
+   "expectType": null
+  },
+  {
+   "id": "d1_body_sysml_attribute",
+   "row": 1,
+   "purpose": "select 式の本体に SysML の attribute 宣言を書く。CalculationBody なら受理、本文(KerML の FunctionBodyPart)なら拒否",
+   "predict": "accept",
+   "expectType": null
+  },
+  {
+   "id": "d2_name_tab",
+   "row": 2,
+   "purpose": "引用符で囲む名前の中にタブ(U+0009)",
+   "predict": "accept",
+   "expectType": null
+  },
+  {
+   "id": "d2_name_newline",
+   "row": 2,
+   "purpose": "引用符で囲む名前の中に改行(U+000A)",
+   "predict": "accept",
+   "expectType": null
+  },
+  {
+   "id": "d3_escape_r",
+   "row": 3,
+   "purpose": "引用符で囲む名前の中のエスケープ列 \\r",
+   "predict": "accept",
+   "expectType": null
+  },
+  {
+   "id": "d4_formfeed",
+   "row": 4,
+   "purpose": "字句の間の空白としてフォームフィード(U+000C)",
+   "predict": "reject",
+   "expectType": null
+  },
+  {
+   "id": "d5_metadata",
+   "row": 5,
+   "purpose": "パッケージ直下のメタデータ。構文木の要素の種類を見る",
+   "predict": "accept",
+   "expectType": "MetadataUsage"
+  },
+  {
+   "id": "d5_metadata_typed_by",
+   "row": 5,
+   "purpose": "(2.5 節にない差の確認)本文の MetadataUsageDeclaration・MetadataFeatureDeclaration は「typed by」。パイロット実装は「defined by」",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "d5_metadata_defined_by",
+   "row": 5,
+   "purpose": "(2.5 節にない差の確認)「defined by」で書いたメタデータ",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_empty",
+   "row": "lex",
+   "purpose": "空の名前 ''",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_japanese",
+   "row": "lex",
+   "purpose": "日本語の名前",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_nul",
+   "row": "lex",
+   "purpose": "名前の中に U+0000",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_bel",
+   "row": "lex",
+   "purpose": "名前の中に U+0007",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_vt",
+   "row": "lex",
+   "purpose": "名前の中に U+000B",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_ff",
+   "row": "lex",
+   "purpose": "名前の中に U+000C",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_cr",
+   "row": "lex",
+   "purpose": "名前の中に U+000D",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_del",
+   "row": "lex",
+   "purpose": "名前の中に U+007F",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_nel",
+   "row": "lex",
+   "purpose": "名前の中に U+0085(C1 制御文字)",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_ls",
+   "row": "lex",
+   "purpose": "名前の中に U+2028(行区切り)",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_bom",
+   "row": "lex",
+   "purpose": "名前の中に U+FEFF",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_name_emoji",
+   "row": "lex",
+   "purpose": "名前の中に補助面の文字 U+1F600",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_b",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\b",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_t",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\t",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_n",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\n",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_f",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\f",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_backslash",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\\\",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_quote",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\'",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_dquote",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\\"",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_v",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\v",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_a",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\a",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_zero",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\0",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_escape_u",
+   "row": "lex",
+   "purpose": "名前の中のエスケープ列 \\u",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_string_newline",
+   "row": "lex",
+   "purpose": "文字列の中に改行(U+000A)",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_string_escape_r",
+   "row": "lex",
+   "purpose": "文字列の中のエスケープ列 \\r",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_bom",
+   "row": "lex",
+   "purpose": "先頭に BOM(U+FEFF)",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_crlf",
+   "row": "lex",
+   "purpose": "行末が CR LF",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_cr_only",
+   "row": "lex",
+   "purpose": "行末が CR だけ",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_ws_vt",
+   "row": "lex",
+   "purpose": "字句の間の空白として U+000B",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_ws_nbsp",
+   "row": "lex",
+   "purpose": "字句の間の空白として U+00A0",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_note_cr",
+   "row": "lex",
+   "purpose": "1 行の注の終わりが CR だけ(注の後ろの part q を読むか)",
+   "predict": null,
+   "expectType": null
+  },
+  {
+   "id": "lex_nul_between",
+   "row": "lex",
+   "purpose": "字句の間に U+0000",
+   "predict": null,
+   "expectType": null
+  }
+ ]
+}

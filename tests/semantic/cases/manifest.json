@@ -1,0 +1,487 @@
+{
+ "description": "意味エラーの最小の入力と、このアプリが出す結果の期待(GR5 指示書 5 章)。line・col は 1 から数え、col は範囲の始まり。text は範囲の原文。kind: violation(違反する)・ok(違反しない)・library(標準ライブラリがないと判定しない)・boundary(裁定で期待を決めた境目)。ruling はその期待が依存する P2 の裁定の番号(reports/GR5/P2_cases_*.md の 8 章)。T4 は P1 の裁定 Q1 で検査しない項目に移したので入力を置かない",
+ "items": [
+  "S1",
+  "S2",
+  "S3",
+  "S4",
+  "T1",
+  "T2",
+  "T3",
+  "U1",
+  "U4",
+  "U5",
+  "U6"
+ ],
+ "cases": [
+  {
+   "file": "S1_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S1",
+     "line": 3,
+     "col": 14,
+     "text": "Q::B"
+    }
+   ],
+   "note": "修飾名の後ろの区切り B が、import も継承も持たないパッケージ Q に見つからない"
+  },
+  {
+   "file": "S1_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "S1_violation と同じ形で、Q に B がある"
+  },
+  {
+   "file": "S1_lib_global.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "単純な名前 B が根の名前空間にない。大域の名前空間(標準ライブラリの最上位の名前を含む)を探しきれないので判定しない",
+   "ruling": "Q6"
+  },
+  {
+   "file": "S1_lib_inherit.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "D は型なので、暗黙の特殊化(標準ライブラリの型)から zz を受け継ぐかもしれない"
+  },
+  {
+   "file": "S1_lib_import.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "Q は対象のわからない import(Lib::*)を持つ"
+  },
+  {
+   "file": "S1_lib_filter.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "Q のフィルター条件 true は評価できない(@種類名・@メタデータ定義の形でない)"
+  },
+  {
+   "file": "S1_lib_dollar.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "$:: の後の最初の区切りは大域の名前空間(標準ライブラリを含む)で探す名前なので、見つからなくても S1 にしない。$::ScalarValues::Real は正しいテキスト",
+   "ruling": "Q6"
+  },
+  {
+   "file": "S2_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S2",
+     "line": 2,
+     "col": 5,
+     "text": "part def A;"
+    },
+    {
+     "item": "S2",
+     "line": 3,
+     "col": 5,
+     "text": "part def A;"
+    }
+   ],
+   "note": "同じ種類・同じ名前の所有のメンバー"
+  },
+  {
+   "file": "S2_ok_kinds.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "名前は同じだが、PartDefinition と AttributeDefinition は互いに適合しないので区別できる"
+  },
+  {
+   "file": "S2_violation_short.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S2",
+     "line": 2,
+     "col": 5,
+     "text": "part def <A> X;"
+    },
+    {
+     "item": "S2",
+     "line": 3,
+     "col": 5,
+     "text": "part def A;"
+    }
+   ],
+   "note": "短い名前と名前が同じ"
+  },
+  {
+   "file": "S2_violation_inherited.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S2",
+     "line": 3,
+     "col": 23,
+     "text": "part a;"
+    }
+   ],
+   "note": "所有の a と、B から受け継いだ a(再定義していない)"
+  },
+  {
+   "file": "S2_ok_redefined.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "S2_violation_inherited と同じ形で、a を再定義する(受け継いだ a は除かれる)"
+  },
+  {
+   "file": "S2_lib_inherited.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "self は標準ライブラリから受け継ぐ名前と同じかもしれないが、ライブラリの要素なので判定しない"
+  },
+  {
+   "file": "S2_import.sysml",
+   "kind": "boundary",
+   "expect": [],
+   "note": "C が A と B から同じ名前・同じ種類の X を import する。importedMemberships の説明(kerml10.txt 8284〜8286 行)により、区別できない取り込みは取り込まれないので S2 にしない",
+   "ruling": "Q3"
+  },
+  {
+   "file": "S3_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S3",
+     "line": 3,
+     "col": 14,
+     "text": "Q"
+    }
+   ],
+   "note": "型付けの型がパッケージに解決する(Type に適合しない)"
+  },
+  {
+   "file": "S3_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "S3_violation と同じ形で、Q が部品の定義"
+  },
+  {
+   "file": "S3_shadow.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S3",
+     "line": 3,
+     "col": 27,
+     "text": "Q"
+    }
+   ],
+   "note": "D の暗黙の特殊化を通り越して外側で見つかる(D3 の印)。診断では解決済みとして扱う"
+  },
+  {
+   "file": "S3_outer.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S3",
+     "line": 5,
+     "col": 18,
+     "text": "Q"
+    }
+   ],
+   "note": "内側のパッケージ Q に解決する。パイロット実装は外側の部品の定義 Q に解決する(P1 の裁定 Q2: 本文どおりの差)"
+  },
+  {
+   "file": "S4_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "S4",
+     "line": 2,
+     "col": 1,
+     "text": "public import P::*;"
+    },
+    {
+     "item": "S4",
+     "line": 3,
+     "col": 1,
+     "text": "protected import P::*;"
+    }
+   ],
+   "note": "根の名前空間の import に public・protected"
+  },
+  {
+   "file": "S4_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "根の名前空間の import は private。パッケージの中の public import は対象外"
+  },
+  {
+   "file": "T1_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "T1",
+     "line": 4,
+     "col": 21,
+     "text": "type T ~ A ~ B;"
+    }
+   ],
+   "note": "型が共役の関係を 2 つ所有する。KerML の式の本体の中でだけ書ける(設計書 2.5 節: パイロット実装は式の本体を CalculationBody にしているので構文エラー)。T1 は照合できない項目(P2 の裁定)"
+  },
+  {
+   "file": "T1_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "共役の関係が 1 つ"
+  },
+  {
+   "file": "T2_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "T2",
+     "line": 3,
+     "col": 36,
+     "text": "x"
+    },
+    {
+     "item": "T2",
+     "line": 4,
+     "col": 32,
+     "text": "x"
+    }
+   ],
+   "note": "in の特徴を out で再定義する、向きなしで再定義する"
+  },
+  {
+   "file": "T2_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "同じ向きで再定義する(inout を含む)"
+  },
+  {
+   "file": "T2_conjugated_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "共役ポートを通すと x の向きは out になり、out で再定義すると合う"
+  },
+  {
+   "file": "T2_conjugated_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "T2",
+     "line": 4,
+     "col": 35,
+     "text": "x"
+    }
+   ],
+   "note": "共役ポートを通すと x の向きは out になり、in で再定義すると合わない"
+  },
+  {
+   "file": "T2_implicit_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "T2",
+     "line": 3,
+     "col": 25,
+     "text": "out item y;"
+    }
+   ],
+   "note": "行動の定義の引数の暗黙の再定義(KerML 8.4.2 checkFeatureParameterRedefinition)で、in の x を out の y が再定義する"
+  },
+  {
+   "file": "T2_implicit_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "暗黙の再定義で向きが同じ"
+  },
+  {
+   "file": "T2_lib_unchecked.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "B の最初の上位の型 Lib::X が未検査なので、directionOf をたどれない"
+  },
+  {
+   "file": "T3_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "T3",
+     "line": 3,
+     "col": 38,
+     "text": "a"
+    }
+   ],
+   "note": "端の特徴 a を、端でない特徴で再定義する"
+  },
+  {
+   "file": "T3_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "端の特徴を端で再定義する"
+  },
+  {
+   "file": "T3_lib_end.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "再定義される source は標準ライブラリの端の特徴(Connections::BinaryConnection)なので判定しない"
+  },
+  {
+   "file": "U1_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U1",
+     "line": 2,
+     "col": 14,
+     "text": "variant part w;"
+    },
+    {
+     "item": "U1",
+     "line": 3,
+     "col": 18,
+     "text": "variant part w;"
+    }
+   ],
+   "note": "variation でない使用・定義が variant を所有する"
+  },
+  {
+   "file": "U1_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "variation の使用・定義が variant を所有する"
+  },
+  {
+   "file": "U4_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U4",
+     "line": 2,
+     "col": 19,
+     "text": "part p;"
+    },
+    {
+     "item": "U4",
+     "line": 4,
+     "col": 23,
+     "text": "item z;"
+    }
+   ],
+   "note": "ポートの定義・使用が所有する、ポートでない合成の使用"
+  },
+  {
+   "file": "U4_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "参照の使用・属性・向きのある使用・ポートの使用"
+  },
+  {
+   "file": "U5_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U5",
+     "line": 5,
+     "col": 9,
+     "text": "transition first s1 then s2;"
+    }
+   ],
+   "note": "並行状態の入れ子の状態どうしの遷移"
+  },
+  {
+   "file": "U5_ok_nested.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "遷移は並行でない状態 s1 の中のもので、始点・終点は s の入れ子のアクションでない"
+  },
+  {
+   "file": "U5_succession.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "並行状態の中の継承(succession)は遷移でない(本文の incomingTransition・outgoingTransition は TransitionUsage)"
+  },
+  {
+   "file": "U5_outside.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U5",
+     "line": 7,
+     "col": 9,
+     "text": "transition first s.s1 then s.s2;"
+    }
+   ],
+   "note": "並行状態の外が所有する遷移が、並行状態の入れ子の状態を始点・終点にする。パイロット実装は出さない(本文どおりの差(U5))",
+   "ruling": "Q4"
+  },
+  {
+   "file": "U5_lib_unresolved.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "遷移の始点・終点が未検査"
+  },
+  {
+   "file": "U6_violation.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U6",
+     "line": 6,
+     "col": 28,
+     "text": "accept T"
+    }
+   ],
+   "note": "始点がアクション(状態でない)で、引き金を持つ"
+  },
+  {
+   "file": "U6_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "始点が状態"
+  },
+  {
+   "file": "U6_start.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "start は内蔵する表の Actions::Action::start に解決するが、状態の定義では States::StateAction の start(状態)が再定義している。始点が内蔵する表の項目なので判定しない",
+   "ruling": "Q5"
+  },
+  {
+   "file": "U6_lib_unresolved.sysml",
+   "kind": "library",
+   "expect": [],
+   "note": "遷移の始点が未検査"
+  },
+  {
+   "file": "U5_implicit.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U5",
+     "line": 6,
+     "col": 13,
+     "text": "accept T then t;"
+    }
+   ],
+   "note": "始点を省いた遷移(accept … then …)の始点が、並行状態 s の入れ子の状態 s1(設計書 7.8 節の描画の規則で求めたもの。GR17 の U)"
+  },
+  {
+   "file": "U6_implicit_ok.sysml",
+   "kind": "ok",
+   "expect": [],
+   "note": "始点を省いた引き金付きの遷移の始点は、前の状態 s1(GR17 の U)"
+  },
+  {
+   "file": "U6_implicit.sysml",
+   "kind": "violation",
+   "expect": [
+    {
+     "item": "U6",
+     "line": 6,
+     "col": 9,
+     "text": "accept T"
+    }
+   ],
+   "note": "始点を省いた引き金付きの遷移の始点が、entry の行動 e(設計書 7.8 節の規則で、行動 a を飛ばして求めたもの。GR17 の U)"
+  }
+ ]
+}

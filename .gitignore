@@ -1,0 +1,4 @@
+# 公式のファイルの取得先(tools/fetch.sh)、検査とビルドの出力、取得の記録(tools/fetch.sh が reports/GR1/ に書く)
+vendor/
+out/
+reports/

@@ -1,0 +1,317 @@
+{
+ "_説明": "警告(W1・W2)の最小の入力と期待(GR19 指示書 4 章・v19.1 の 4 章)。expect は項目・範囲の始まりの行と列・範囲の原文。message があれば文も比べる。空なら警告なし。W1_part_missing_unchecked は型が未検査なので判定しない。W1_unlisted_kind_ok は表にない使用の種類(状態)なので判定しない。W2 は型に書いた名前(最後の区切り。~ を除く)で判定し、型の名前の解決の結果によらない(v19.1 の 3.1 節): W2_same_namespace_ambiguous は型の名前が曖昧、W2_self_resolved・W2_port_self_warn・W2_port_conjugated_warn は型の名前が使用そのものに解決するが、どれも W2 を出し、W1 は出さない。W2_item_ok は部品・ポートでない使用なので W2 なし。W1_role_* は要求・ケースの actor・stakeholder の行(7.21.2 節・7.22.2 節。部品の定義)",
+ "cases": [
+  {
+   "file": "W1_action_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_action_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 12,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_allocation_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_allocation_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 16,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_attribute_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_attribute_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 15,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_connection_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_connection_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 16,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_flow_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_flow_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 10,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_interface_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_interface_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 15,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_item_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_item_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 10,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_occurrence_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_occurrence_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 16,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_part_action_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 10,
+     "text": "A",
+     "message": "部品 p の型に指定した A は、行動の定義です。SysML 2.0 の 7.11.2 節では、部品の型は項目の定義(部品の定義を含む)か KerML の構造とされています。意図した型の指定か確かめてください"
+    }
+   ]
+  },
+  {
+   "file": "W1_part_item_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_part_library_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 1,
+     "col": 10,
+     "text": "ISQ::MassValue"
+    }
+   ]
+  },
+  {
+   "file": "W1_part_missing_unchecked.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_part_part_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_port_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_port_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 2,
+     "col": 10,
+     "text": "A"
+    }
+   ]
+  },
+  {
+   "file": "W1_role_case_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_role_case_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 3,
+     "col": 15,
+     "text": "I",
+     "message": "部品 a の型に指定した I は、項目の定義です。SysML 2.0 の 7.22.2 節では、actor の部品の型は部品の定義とされています。意図した型の指定か確かめてください"
+    },
+    {
+     "item": "W1",
+     "line": 6,
+     "col": 15,
+     "text": "I",
+     "message": "部品 b の型に指定した I は、項目の定義です。SysML 2.0 の 7.22.2 節では、actor の部品の型は部品の定義とされています。意図した型の指定か確かめてください"
+    }
+   ]
+  },
+  {
+   "file": "W1_role_requirement_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W1_role_requirement_warn.sysml",
+   "expect": [
+    {
+     "item": "W1",
+     "line": 3,
+     "col": 15,
+     "text": "I",
+     "message": "部品 a の型に指定した I は、項目の定義です。SysML 2.0 の 7.21.2 節では、actor・stakeholder の部品の型は部品の定義とされています。意図した型の指定か確かめてください"
+    },
+    {
+     "item": "W1",
+     "line": 4,
+     "col": 21,
+     "text": "I",
+     "message": "部品 s の型に指定した I は、項目の定義です。SysML 2.0 の 7.21.2 節では、actor・stakeholder の部品の型は部品の定義とされています。意図した型の指定か確かめてください"
+    }
+   ]
+  },
+  {
+   "file": "W1_unlisted_kind_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W2_item_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W2_name_differs_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W2_ok.sysml",
+   "expect": []
+  },
+  {
+   "file": "W2_outer_def_warn.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 3,
+     "col": 5,
+     "text": "part 'ブザー' : 'ブザー'",
+     "message": "部品 'ブザー' の名前が、型に書いた名前 'ブザー' と同じです。同じ名前にすると、型の名前が同じ名前の別の要素や、この部品自身を指すことがあります。意図した型の指定か確かめてください(「書き方」では、使用の名前を定義の名前と別にしています)"
+    }
+   ]
+  },
+  {
+   "file": "W2_part_qualified_warn.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 4,
+     "col": 1,
+     "text": "part 'ブザー' : '部品の定義'::'ブザー'"
+    }
+   ]
+  },
+  {
+   "file": "W2_port_conjugated_warn.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 3,
+     "col": 5,
+     "text": "port P : ~P",
+     "message": "ポート P の名前が、型に書いた名前 ~P と同じです。同じ名前にすると、型の名前が同じ名前の別の要素や、このポート自身を指すことがあります。意図した型の指定か確かめてください(「書き方」では、使用の名前を定義の名前と別にしています)"
+    }
+   ]
+  },
+  {
+   "file": "W2_port_qualified_warn.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 5,
+     "col": 5,
+     "text": "port P : Defs::P"
+    }
+   ]
+  },
+  {
+   "file": "W2_port_self_warn.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 3,
+     "col": 5,
+     "text": "port P : P"
+    }
+   ]
+  },
+  {
+   "file": "W2_same_namespace_ambiguous.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 2,
+     "col": 1,
+     "text": "part 'ブザー' : 'ブザー'",
+     "message": "部品 'ブザー' の名前が、型に書いた名前 'ブザー' と同じです。同じ名前にすると、型の名前が同じ名前の別の要素や、この部品自身を指すことがあります。意図した型の指定か確かめてください(「書き方」では、使用の名前を定義の名前と別にしています)"
+    }
+   ]
+  },
+  {
+   "file": "W2_self_resolved.sysml",
+   "expect": [
+    {
+     "item": "W2",
+     "line": 3,
+     "col": 5,
+     "text": "port P : P"
+    }
+   ]
+  }
+ ]
+}

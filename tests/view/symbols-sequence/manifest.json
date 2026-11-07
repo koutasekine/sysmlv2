@@ -1,0 +1,23 @@
+{
+ "_説明": [
+  "シーケンスビューの記号ごとの最小の入力(GR9 指示書 6 章・8 章の 3)。形は tests/view/symbols/manifest.json と同じ。",
+  "各項目は、file をシーケンスビューの描く範囲 candidate(省くと最初の候補)で描き、expect の記号が構造か SVG の data-sym に現れること、",
+  "texts の文字が SVG に現れること(エスケープした形)、diagnostics の code が診断に現れることを確かめる。",
+  "covers は、その入力で確かめる記号の一覧の生成規則(tools/view/symbols.json の sequence.symbols の name)。check は確認用の画像で並べる仕様書の生成規則。",
+  "unused は、記号の一覧で「GR9 で描く」としたが、使わない生成規則と、その理由。",
+  "GR4・GR6・GR7 の一覧にある記号(prior があるもの)は、ここの covers・unused か、GR4・GR6・GR7 の入力の covers・unused のどちらかにあればよい。"
+ ],
+ "cases": [
+  { "file": "occurrence-def.sysml", "check": "occurrence-def", "covers": ["occurrence-def", "occurrence-def-name-compartment", "sequence-view", "sq-graphical-element", "sq-graphical-node", "sq-head-node", "sq-part", "lifeline", "sq-graphical-relationship", "message", "message-label", "msg-end-node", "part-name-compartment"], "expect": ["occurrence-def", "occurrence-def-name-compartment", "sq-part", "part-name-compartment", "lifeline", "message"], "texts": ["«occurrence def»", "Notify", "sensor", "buzzer", "alarm of Alarm"] },
+  { "file": "occurrence.sysml", "check": "occurrence", "covers": ["occurrence", "occurrence-name-compartment"], "expect": ["occurrence", "occurrence-name-compartment", "sq-part", "lifeline", "message"], "texts": ["«occurrence»", "notify"] },
+  { "file": "occurrence-ref.sysml", "check": "occurrence-ref", "covers": ["occurrence-ref", "occurrence-refxfx"], "expect": ["occurrence-ref", "occurrence-name-compartment", "sq-part", "message"], "texts": ["«ref occurrence»"] },
+  { "file": "order.sysml", "check": "sequence-view", "covers": [], "expect": ["sq-part", "lifeline", "message", "successions-compartment"], "texts": ["subscribe", "publish", "deliver", "ack"] },
+  { "file": "proxy.sysml", "check": "sq-proxy", "covers": ["sq-proxy", "proxy-label"], "expect": ["sq-proxy", "message"], "texts": [".controller.received", ".controller.commanded", ".engine.started"] },
+  { "file": "ports.sysml", "check": "sq-port", "covers": ["sq-port", "sq-port-label"], "expect": ["sq-port", "sq-port-label", "lifeline", "message"], "texts": ["tx : SerialPort", "rx : SerialPort", "gate : SerialPort"] },
+  { "file": "succession.sysml", "check": "sq-succession", "covers": ["sq-succession", "sq-l-node", "succession-label"], "expect": ["sq-succession", "sq-proxy"], "texts": ["doorFirst", ".closed", ".ready"] },
+  { "file": "shorthand.sysml", "check": "message", "covers": [], "expect": ["message"], "texts": ["ping of Ping", "pong of Ping"] },
+  { "file": "part-scope.sysml", "check": "sequence-compartment", "covers": ["sequence-compartment"], "expect": ["part-def", "sequence-compartment", "sq-part", "message"], "texts": ["sequence", "record"] },
+  { "file": "view-frame.sysml", "check": "framed-view", "covers": [], "expect": ["framed-view", "occurrence-def", "comment-with-keyword", "annotation-link", "binary-dependency", "ellipsis-at-lower-left-corner"], "texts": ["«view» talkView : SequenceView", "expose Talk::hello", "送り手", "dep"] }
+ ],
+ "unused": {}
+}

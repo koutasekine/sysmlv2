@@ -1,0 +1,74 @@
+{
+ "_説明": [
+  "安全性の検査用の入力一覧(GR4 指示書 8 章の 4、設計書 10 章)。tests/view/run.mjs が使う。",
+  "sysml: 描く入力。次を確かめる。(1) SVG が正しい XML として読める(src/app/xml.js)。(2) SVG の要素に script・img・",
+  "  foreignObject・iframe・a・use・image・animate・set がなく、属性に on で始まるもの・href・xlink:href がない。",
+  "  (3) forbidden の文字列(生のタグの形)が SVG に出ない。(4) mustContain の文字列(エスケープした形)が SVG に出る。",
+  "細工した .svg の読み込みは tests/view/app.mjs の検査 2 で確かめる。",
+  "GR18 の S1: XML 1.0 で使えない文字(U+0001・U+FFFE・\\b で書いた U+0008)は、SVG に出さず U+FFFD に置き換える(forbidden に生の文字、mustContain に置き換えた形)。"
+ ],
+ "sysml": [
+  {
+   "name": "script を含む引用符付きの名前",
+   "text": "part '<script>alert(1)</script>' {\n    part '<img src=x onerror=alert(2)>';\n    port '\"><svg onload=alert(3)>' ;\n}\n",
+   "forbidden": [
+    "<script",
+    "<img",
+    "<svg onload"
+   ],
+   "mustContain": [
+    "&lt;script&gt;alert(1)&lt;/script&gt;",
+    "&lt;img src=x onerror=alert(2)&gt;"
+   ]
+  },
+  {
+   "name": "< & \" を含む文字列と注",
+   "text": "part p {\n    doc /* a < b && c > \"d\" </text><script>x</script> */\n    attribute a = \"<&>\\\"'\";\n    comment about q /* ]]> <![CDATA[ x ]]> &amp; */\n    part q;\n    connect q to q;\n}\n",
+   "forbidden": [
+    "</text><script>",
+    "<![CDATA[",
+    "<&>"
+   ],
+   "mustContain": [
+    "a &lt; b &amp;&amp; c &gt; &quot;d&quot;",
+    "&amp;amp;"
+   ]
+  },
+  {
+   "name": "名前の中の引用符とアンパサンド",
+   "text": "part def 'A&B' { port 'x\\'y'; }\npart 'a&b' : 'A&B' { part '\"q\"'; }\nview 'v<1>' { expose 'a&b'; expose 'a&b'::**; }\n",
+   "forbidden": [
+    ">A&B<",
+    "v<1>"
+   ],
+   "mustContain": [
+    "A&amp;B",
+    "v&lt;1&gt;"
+   ]
+  },
+  {
+   "name": "メタデータと別名",
+   "text": "metadata def '<M>' { attribute v : String; }\npart p { @'<M>' { v = \"</svg>\"; } part q; }\nalias '<al>' for p;\n",
+   "forbidden": [
+    "<M>",
+    "<al>"
+   ],
+   "mustContain": [
+    "&lt;M&gt;"
+   ]
+  },
+  {
+   "name": "XML 1.0 で使えない文字(GR18 の S1)",
+   "text": "part p {\n    doc /* a\u0001b */\n    part q;\n    part 'x￾y';\n    part 'b\\bc';\n}\n",
+   "forbidden": [
+    "\u0001",
+    "￾",
+    "\b"
+   ],
+   "mustContain": [
+    "x�y",
+    "b�c"
+   ]
+  }
+ ]
+}

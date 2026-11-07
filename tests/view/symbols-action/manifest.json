@@ -1,0 +1,28 @@
+{
+ "_説明": [
+  "アクションフロービューの記号ごとの最小の入力(GR7 指示書 6 章・8 章の 3)。形は tests/view/symbols/manifest.json と同じ。",
+  "各項目は、file をアクションフロービューの描く範囲 candidate(省くと最初の候補)で描き、expect の記号が構造か SVG の data-sym に現れること、",
+  "texts の文字が SVG に現れること(エスケープした形)、diagnostics の code が診断に現れることを確かめる。",
+  "view が 'state' の項目は、状態遷移ビューで描く(状態遷移ビューの本体を図にする形。GR7 指示書 6 章)。",
+  "covers は、その入力で確かめる記号の一覧の生成規則(tools/view/symbols.json の actionFlow.symbols の name)。check は確認用の画像で並べる仕様書の生成規則。",
+  "unused は、記号の一覧で「GR7 で描く」としたが、使わない生成規則と、その理由。",
+  "GR4・GR6 の一覧にある記号(prior があるもの)は、ここの covers・unused か、GR4・GR6 の入力(tests/view/symbols/・tests/view/symbols-state/ の manifest.json)の covers・unused のどちらかにあればよい。"
+ ],
+ "cases": [
+  { "file": "action-def.sysml", "check": "action-def", "covers": ["action-def", "action-def-name-compartment", "action-flow-view", "action-flow-element", "action-flow-node", "action-flow-relationship", "action", "action-name-compartment", "start-node", "done-node", "aflow-succession", "parameter"], "expect": ["action-def", "action-def-name-compartment", "action", "start-node", "done-node", "aflow-succession", "param-l", "param-r"], "texts": ["«action def»", "threshold : Real", "alarm : Boolean"] },
+  { "file": "fork-join.sysml", "check": "fork-node", "covers": ["fork-node", "join-node"], "expect": ["fork-node", "join-node", "aflow-succession"] },
+  { "file": "decide-merge.sysml", "check": "aflow-succession", "covers": ["decision-node", "merge-node", "else-branch", "guard-expression"], "expect": ["decision-node", "merge-node", "else-branch", "aflow-succession"], "texts": ["[x &gt; 0]", "else"] },
+  { "file": "send-accept.sysml", "check": "send-action-node", "covers": ["send-action-node", "accept-action-node", "assign-action-node", "send-action-name-compartment", "accept-action-name-compartment", "assign-action-name-compartment", "send-action-expression", "accept-action-expression", "assign-action-expression"], "expect": ["send-action-node", "accept-action-node", "assign-action-node", "send-icon", "accept-icon"], "texts": ["«accept action»", "«send action»", "«assign»", "s : Sig", "new Sig () to self", "n := 1"] },
+  { "file": "if-else.sysml", "check": "if-else-action-node", "covers": ["if-else-action-node", "ifelse-action-name-compartment", "if-condition", "condition-expression", "then-body", "else-body", "action-body", "action-body-textual"], "expect": ["if-else-action-node", "if-condition", "then-body", "else-body", "action-flow-view", "aflow-succession"], "texts": ["if condition", "x &gt; 0", "then body", "else body", "{ attribute y : Integer; }"] },
+  { "file": "loops.sysml", "check": "while-loop-action-node", "covers": ["while-loop-action-node", "for-loop-action-node", "while-loop-action-name-compartment", "for-loop-action-name-compartment", "while-condition", "until-condition", "iteration", "iteration-expression", "loop-body"], "expect": ["while-loop-action-node", "for-loop-action-node", "while-condition", "until-condition", "iteration", "loop-body", "action-flow-view"], "texts": ["while condition", "until condition", "for iterator", "i in (1, 2)", "loop body"] },
+  { "file": "flows.sysml", "check": "flow", "covers": ["flow", "flow-label", "flow-end-node", "succession-flow", "binding-connection", "param-label"], "expect": ["flow", "succession-flow", "binding-connection", "param-l", "param-r"] },
+  { "file": "proxy.sysml", "check": "param-l", "covers": ["proxy-v", "proxy-label"], "expect": ["flow", "proxy-v"], "texts": [".w"] },
+  { "file": "message.sysml", "check": "action-flow-relationship", "covers": ["message"], "expect": ["message"] },
+  { "file": "swimlanes.sysml", "check": "swimlane", "covers": ["perform-action-swimlanes", "perform-actions-swimlanes", "swimlane", "usage-name-compartment"], "expect": ["perform-actions-swimlanes", "swimlane", "usage-name-compartment", "perform-actions-compartment", "start-node", "done-node"], "texts": ["«performer»", "P::system::board", "P::system::led", "perform actions"] },
+  { "file": "perform-ref.sysml", "check": "perform-action-usage", "covers": ["perform-action-usage", "perform-action-name-compartment", "action-ref", "terminate-node"], "expect": ["perform-action-usage", "action-ref", "terminate-node"], "texts": ["«perform action»", "«ref action»"] },
+  { "file": "perform-outer.sysml", "check": "perform-action-usage", "covers": [], "expect": ["action", "perform-action-name-compartment"], "texts": ["«perform action»", "job : Base"] },
+  { "file": "view-frame.sysml", "check": "action-flow-view", "covers": [], "expect": ["framed-view", "action-def", "documentation-node", "annotation-link"], "texts": ["«view» v : ActionFlowView", "expose Flow::**"] },
+  { "file": "state-bodies.sysml", "view": "state", "check": "state-subaction-body", "covers": ["state-subaction-body"], "expect": ["state", "state-entry-action", "action-flow-view", "start-node", "done-node", "aflow-succession"], "texts": ["action init"] }
+ ],
+ "unused": {}
+}

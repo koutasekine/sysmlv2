@@ -1,0 +1,28 @@
+{
+ "_説明": [
+  "状態遷移ビューの記号ごとの最小の入力(GR6 指示書 5 章・7 章の 3)。形は tests/view/symbols/manifest.json と同じ。",
+  "各項目は、file を状態遷移ビューの描く範囲 candidate(省くと最初の候補)で描き、expect の記号が構造か SVG の data-sym に現れること、",
+  "texts の文字が SVG に現れること(エスケープした形)、diagnostics の code が診断に現れることを確かめる。",
+  "covers は、その入力で確かめる記号の一覧の生成規則(tools/view/symbols.json の stateTransition.symbols の name)。check は確認用の画像で並べる仕様書の生成規則。",
+  "unused は、記号の一覧で「GR6 で描く」としたが、裁定によって使わない生成規則と、その理由。",
+  "GR4 の一覧にある記号(gr4 が true)は、ここの covers・unused か、GR4 の入力(tests/view/symbols/manifest.json)の covers・unused のどちらかにあればよい。",
+  "GR7: state-actions.sysml と entry-action.sysml の turnOn・init の本体 { first start; then done; } は継承を持つので、本体をアクションフローの図(action-flow-view)にする(設計書 7.4 節、GR7 P1 の裁定 Q9)。期待の文字を、本体の文字から宣言の行と action-flow-view に置き換えた"
+ ],
+ "cases": [
+  { "file": "state-def.sysml", "check": "state-def", "covers": ["state-def", "state-def-name-compartment", "state-transition-view", "state-transition-element", "state-transition-node", "state", "state-node", "state-name-compartment", "transition", "state-source", "transition-label", "trigger-expression", "entry-action", "st-succession"], "expect": ["state-def", "state-def-name-compartment", "state", "state-name-compartment", "entry-action", "transition", "st-succession"], "texts": ["«state def»", "Switch", "s : Sig"] },
+  { "file": "state.sysml", "check": "state", "covers": [], "expect": ["state", "state-name-compartment", "entry-action", "st-succession"], "texts": ["«parallel»", "machine"] },
+  { "file": "state-ref.sysml", "check": "state-ref", "covers": ["state-ref", "state-ref-node"], "expect": ["state-ref", "st-succession"], "texts": ["«ref state»"] },
+  { "file": "exhibit-state.sysml", "candidate": "state:P::Board::behavior", "check": "exhibit-state-name-compartment", "covers": ["exhibit-state-name-compartment"], "expect": ["state", "exhibit-state-name-compartment"], "texts": ["«exhibit-state»", "«state»", "behavior"] },
+  { "file": "state-actions.sysml", "check": "state-entry-action", "covers": ["state-entry-action", "state-do-action", "state-exit-action", "state-subaction-body", "state-subaction-body-textual", "state-subaction-declaration"], "expect": ["state-entry-action", "state-do-action", "state-exit-action", "action-flow-view"], "texts": [">entry</text>", ">do</text>", ">exit</text>", ">action turnOn</text>", "action blink : Blink"] },
+  { "file": "entry-action.sysml", "check": "entry-action", "covers": ["entry-action-name-comp", "do-action", "do-action-name-comp", "exit-action", "exit-action-name-comp"], "expect": ["entry-action", "entry-action-name-comp", "do-action", "do-action-name-comp", "exit-action", "exit-action-name-comp", "transition", "st-succession", "action-flow-view"], "texts": ["«entry action»", "«do action»", "«exit action»"] },
+  { "file": "transition.sysml", "check": "transition", "covers": ["guard-expression", "done-node"], "expect": ["transition", "done-node", "entry-action"], "texts": ["t : Tick [enabled]", "/ action c : Count", "after 5", "[enabled]", "/ action stop"] },
+  { "file": "control-nodes.sysml", "check": "decision-node", "covers": ["start-node", "fork-node", "join-node", "decision-node", "merge-node", "terminate-node", "else-branch", "action", "action-name-compartment"], "expect": ["framed-view", "start-node", "fork-node", "join-node", "decision-node", "merge-node", "terminate-node", "else-branch", "transition", "st-succession", "action", "action-name-compartment"], "texts": [">else</text>", "[g]"] },
+  { "file": "action-kinds.sysml", "check": "action", "covers": ["accept-action-expression", "send-action-expression", "assign-action-expression", "if-condition", "while-condition", "until-condition", "iteration", "condition-expression", "iteration-expression", "accept-action-name-compartment", "send-action-name-compartment", "assign-action-name-compartment", "ifelse-action-name-compartment", "while-loop-action-name-compartment", "for-loop-action-name-compartment", "action-ref", "perform-action-usage", "perform-action-name-compartment"], "expect": ["action", "if-condition", "while-condition", "until-condition", "iteration", "accept-action-name-compartment", "send-action-name-compartment", "assign-action-name-compartment", "ifelse-action-name-compartment", "while-loop-action-name-compartment", "for-loop-action-name-compartment", "action-ref", "perform-action-usage", "perform-action-name-compartment"], "texts": ["s : Sig", "new Sig () to p", "x := 1", ">if condition</text>", ">while condition</text>", ">until condition</text>", ">for iterator</text>", "i in (1, 2)", "«accept action»", "«send action»", "«assign»", "«if»", "«loop»", "«ref action»", "«perform action»"] },
+  { "file": "state-params.sysml", "check": "param-l", "covers": [], "expect": ["action", "param-l", "param-r", "pdh"], "texts": ["raw : Integer", "value : Real"] },
+  { "file": "annotations.sysml", "check": "comment-without-keyword", "covers": [], "expect": ["comment-without-keyword", "annotation-link", "binary-dependency", "attributes-compartment"], "texts": ["待機の状態", "attribute count : Integer"] },
+  { "file": "framed-view.sysml", "check": "framed-view", "covers": [], "expect": ["framed-view", "view-frame-info-compartment-tr", "view-frame-info-compartment-bl", "view-frame-info-compartment-br", "ellipsis-at-lower-left-corner", "state"], "texts": ["«view» v : StateTransitionView", "expose S::a", "filter @SysML::StateUsage", "状態だけを描く"] }
+ ],
+ "unused": {
+  "exhibit-state-usage": "裁定 Q2: exhibit state を描く範囲にしたときの外側の箱は state の形(名前の区画だけ exhibit-state-name-compartment)。状態の中の exhibit state は exhibit states の区画に出すので、この箱は使わない"
+ }
+}

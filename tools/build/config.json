@@ -1,0 +1,17 @@
+{
+ "_説明": [
+  "単一 HTML のビルドの設定(GR4 指示書 7 章、設計書 4 章)。node tools/build/build.mjs が読む。",
+  "outputs の各項目が 1 つの HTML。views は、その HTML の「ビュー」の選択欄で選べるようにするビュー(作ってあるものだけ)。",
+  "GR6 で状態遷移ビューを足した。1 つにまとめた HTML は相互接続と状態遷移を選べる。ビューごとの HTML は相互接続だけ(同じソースから出せることの確かめに使う。GR6 の裁定 Q22・Q23)。",
+  "GR7 でアクションフロービューを足した(GR7 指示書 7 章)。1 つにまとめた HTML は 3 つのビューを選べる。",
+  "GR9 でシーケンスビューを足した(GR9 指示書 7 章)。1 つにまとめた HTML は 4 つのビューを選べる。",
+  "GR10 で一般ビューを足した(GR10 指示書 6 章)。1 つにまとめた HTML は 5 つのビューを選べる。",
+  "GR13 で表を足した(GR13 指示書 6 章)。1 つにまとめた HTML は 5 つのビューと表を選べる。",
+  "GR13 の追加の直し(その 2)で、表をグリッドビュー(grid)にし、views の順を仕様書の表 34(SysML 2.0 の 9.2.20.1 節)の順(一般・相互接続・アクションフロー・状態遷移・シーケンス・グリッドビュー)にした。",
+  "GR23 で、1 つにまとめた HTML を公開するアプリ本体 index.html(publish: true。作業ツリーでは dist/index.html、公開のリポジトリでは根の index.html)にし、相互接続ビューだけの HTML を out/build/ に出す(公開しない。設計書 4 章・11 章)。"
+ ],
+ "outputs": [
+  {"file": "index.html", "views": ["general", "interconnection", "action-flow", "state-transition", "sequence", "grid"], "publish": true},
+  {"file": "out/build/sysmlv2-interconnection.html", "views": ["interconnection"]}
+ ]
+}
