@@ -1,0 +1,1669 @@
+{
+ "_説明": "抽象構文のメタクラスと一般化の一覧。node tools/grammar/metaclasses.mjs で out/text/kerml10.txt と out/text/sysml20.txt の 8.3 節から生成した(手で編集しない)。src は見出しの行番号。enum は列挙型。",
+ "metaclasses": [
+  {
+   "name": "Element",
+   "lang": "KerML",
+   "section": "8.3.2.1.2",
+   "src": "kerml10 L7175",
+   "general": []
+  },
+  {
+   "name": "Relationship",
+   "lang": "KerML",
+   "section": "8.3.2.1.3",
+   "src": "kerml10 L7442",
+   "general": [
+    "Element"
+   ]
+  },
+  {
+   "name": "Dependency",
+   "lang": "KerML",
+   "section": "8.3.2.2.2",
+   "src": "kerml10 L7559",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "AnnotatingElement",
+   "lang": "KerML",
+   "section": "8.3.2.3.2",
+   "src": "kerml10 L7654",
+   "general": [
+    "Element"
+   ]
+  },
+  {
+   "name": "Annotation",
+   "lang": "KerML",
+   "section": "8.3.2.3.3",
+   "src": "kerml10 L7726",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Comment",
+   "lang": "KerML",
+   "section": "8.3.2.3.4",
+   "src": "kerml10 L7809",
+   "general": [
+    "AnnotatingElement"
+   ]
+  },
+  {
+   "name": "Documentation",
+   "lang": "KerML",
+   "section": "8.3.2.3.5",
+   "src": "kerml10 L7839",
+   "general": [
+    "Comment"
+   ]
+  },
+  {
+   "name": "TextualRepresentation",
+   "lang": "KerML",
+   "section": "8.3.2.3.6",
+   "src": "kerml10 L7867",
+   "general": [
+    "AnnotatingElement"
+   ]
+  },
+  {
+   "name": "Import",
+   "lang": "KerML",
+   "section": "8.3.2.4.2",
+   "src": "kerml10 L8042",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Membership",
+   "lang": "KerML",
+   "section": "8.3.2.4.3",
+   "src": "kerml10 L8102",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "MembershipImport",
+   "lang": "KerML",
+   "section": "8.3.2.4.4",
+   "src": "kerml10 L8179",
+   "general": [
+    "Import"
+   ]
+  },
+  {
+   "name": "Namespace",
+   "lang": "KerML",
+   "section": "8.3.2.4.5",
+   "src": "kerml10 L8226",
+   "general": [
+    "Element"
+   ]
+  },
+  {
+   "name": "NamespaceImport",
+   "lang": "KerML",
+   "section": "8.3.2.4.6",
+   "src": "kerml10 L8471",
+   "general": [
+    "Import"
+   ]
+  },
+  {
+   "name": "VisibilityKind",
+   "lang": "KerML",
+   "section": "8.3.2.4.7",
+   "src": "kerml10 L8509",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "OwningMembership",
+   "lang": "KerML",
+   "section": "8.3.2.4.8",
+   "src": "kerml10 L8545",
+   "general": [
+    "Membership"
+   ]
+  },
+  {
+   "name": "Conjugation",
+   "lang": "KerML",
+   "section": "8.3.3.1.2",
+   "src": "kerml10 L8830",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Differencing",
+   "lang": "KerML",
+   "section": "8.3.3.1.3",
+   "src": "kerml10 L8874",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Disjoining",
+   "lang": "KerML",
+   "section": "8.3.3.1.4",
+   "src": "kerml10 L8903",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "FeatureDirectionKind",
+   "lang": "KerML",
+   "section": "8.3.3.1.5",
+   "src": "kerml10 L8942",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "FeatureMembership",
+   "lang": "KerML",
+   "section": "8.3.3.1.6",
+   "src": "kerml10 L8967",
+   "general": [
+    "OwningMembership"
+   ]
+  },
+  {
+   "name": "Intersecting",
+   "lang": "KerML",
+   "section": "8.3.3.1.7",
+   "src": "kerml10 L9004",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Specialization",
+   "lang": "KerML",
+   "section": "8.3.3.1.8",
+   "src": "kerml10 L9033",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Multiplicity",
+   "lang": "KerML",
+   "section": "8.3.3.1.9",
+   "src": "kerml10 L9075",
+   "general": [
+    "Feature"
+   ]
+  },
+  {
+   "name": "Type",
+   "lang": "KerML",
+   "section": "8.3.3.1.10",
+   "src": "kerml10 L9132",
+   "general": [
+    "Namespace"
+   ]
+  },
+  {
+   "name": "Unioning",
+   "lang": "KerML",
+   "section": "8.3.3.1.11",
+   "src": "kerml10 L9685",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "Classifier",
+   "lang": "KerML",
+   "section": "8.3.3.2.2",
+   "src": "kerml10 L9743",
+   "general": [
+    "Type"
+   ]
+  },
+  {
+   "name": "Subclassification",
+   "lang": "KerML",
+   "section": "8.3.3.2.3",
+   "src": "kerml10 L9791",
+   "general": [
+    "Specialization"
+   ]
+  },
+  {
+   "name": "CrossSubsetting",
+   "lang": "KerML",
+   "section": "8.3.3.3.2",
+   "src": "kerml10 L10015",
+   "general": [
+    "Subsetting"
+   ]
+  },
+  {
+   "name": "EndFeatureMembership",
+   "lang": "KerML",
+   "section": "8.3.3.3.3",
+   "src": "kerml10 L10082",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "Feature",
+   "lang": "KerML",
+   "section": "8.3.3.3.4",
+   "src": "kerml10 L10109",
+   "general": [
+    "Type"
+   ]
+  },
+  {
+   "name": "FeatureChaining",
+   "lang": "KerML",
+   "section": "8.3.3.3.5",
+   "src": "kerml10 L11012",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "FeatureInverting",
+   "lang": "KerML",
+   "section": "8.3.3.3.6",
+   "src": "kerml10 L11043",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "FeatureTyping",
+   "lang": "KerML",
+   "section": "8.3.3.3.7",
+   "src": "kerml10 L11082",
+   "general": [
+    "Specialization"
+   ]
+  },
+  {
+   "name": "Redefinition",
+   "lang": "KerML",
+   "section": "8.3.3.3.8",
+   "src": "kerml10 L11116",
+   "general": [
+    "Subsetting"
+   ]
+  },
+  {
+   "name": "ReferenceSubsetting",
+   "lang": "KerML",
+   "section": "8.3.3.3.9",
+   "src": "kerml10 L11207",
+   "general": [
+    "Subsetting"
+   ]
+  },
+  {
+   "name": "Subsetting",
+   "lang": "KerML",
+   "section": "8.3.3.3.10",
+   "src": "kerml10 L11242",
+   "general": [
+    "Specialization"
+   ]
+  },
+  {
+   "name": "TypeFeaturing",
+   "lang": "KerML",
+   "section": "8.3.3.3.11",
+   "src": "kerml10 L11302",
+   "general": [
+    "Relationship"
+   ]
+  },
+  {
+   "name": "DataType",
+   "lang": "KerML",
+   "section": "8.3.4.1.2",
+   "src": "kerml10 L11354",
+   "general": [
+    "Classifier"
+   ]
+  },
+  {
+   "name": "Class",
+   "lang": "KerML",
+   "section": "8.3.4.2.2",
+   "src": "kerml10 L11413",
+   "general": [
+    "Classifier"
+   ]
+  },
+  {
+   "name": "Structure",
+   "lang": "KerML",
+   "section": "8.3.4.3.2",
+   "src": "kerml10 L11471",
+   "general": [
+    "Class"
+   ]
+  },
+  {
+   "name": "Association",
+   "lang": "KerML",
+   "section": "8.3.4.4.2",
+   "src": "kerml10 L11542",
+   "general": [
+    "Classifier",
+    "Relationship"
+   ]
+  },
+  {
+   "name": "AssociationStructure",
+   "lang": "KerML",
+   "section": "8.3.4.4.3",
+   "src": "kerml10 L11655",
+   "general": [
+    "Association",
+    "Structure"
+   ]
+  },
+  {
+   "name": "BindingConnector",
+   "lang": "KerML",
+   "section": "8.3.4.5.2",
+   "src": "kerml10 L11747",
+   "general": [
+    "Connector"
+   ]
+  },
+  {
+   "name": "Connector",
+   "lang": "KerML",
+   "section": "8.3.4.5.3",
+   "src": "kerml10 L11784",
+   "general": [
+    "Relationship",
+    "Feature"
+   ]
+  },
+  {
+   "name": "Succession",
+   "lang": "KerML",
+   "section": "8.3.4.5.4",
+   "src": "kerml10 L11951",
+   "general": [
+    "Connector"
+   ]
+  },
+  {
+   "name": "Behavior",
+   "lang": "KerML",
+   "section": "8.3.4.6.2",
+   "src": "kerml10 L12041",
+   "general": [
+    "Class"
+   ]
+  },
+  {
+   "name": "Step",
+   "lang": "KerML",
+   "section": "8.3.4.6.3",
+   "src": "kerml10 L12088",
+   "general": [
+    "Feature"
+   ]
+  },
+  {
+   "name": "ParameterMembership",
+   "lang": "KerML",
+   "section": "8.3.4.6.4",
+   "src": "kerml10 L12171",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "BooleanExpression",
+   "lang": "KerML",
+   "section": "8.3.4.7.2",
+   "src": "kerml10 L12286",
+   "general": [
+    "Expression"
+   ]
+  },
+  {
+   "name": "Expression",
+   "lang": "KerML",
+   "section": "8.3.4.7.3",
+   "src": "kerml10 L12318",
+   "general": [
+    "Step"
+   ]
+  },
+  {
+   "name": "Function",
+   "lang": "KerML",
+   "section": "8.3.4.7.4",
+   "src": "kerml10 L12477",
+   "general": [
+    "Behavior"
+   ]
+  },
+  {
+   "name": "Invariant",
+   "lang": "KerML",
+   "section": "8.3.4.7.5",
+   "src": "kerml10 L12571",
+   "general": [
+    "BooleanExpression"
+   ]
+  },
+  {
+   "name": "Predicate",
+   "lang": "KerML",
+   "section": "8.3.4.7.6",
+   "src": "kerml10 L12609",
+   "general": [
+    "Function"
+   ]
+  },
+  {
+   "name": "ResultExpressionMembership",
+   "lang": "KerML",
+   "section": "8.3.4.7.7",
+   "src": "kerml10 L12636",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "ReturnParameterMembership",
+   "lang": "KerML",
+   "section": "8.3.4.7.8",
+   "src": "kerml10 L12670",
+   "general": [
+    "ParameterMembership"
+   ]
+  },
+  {
+   "name": "CollectExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.2",
+   "src": "kerml10 L12788",
+   "general": [
+    "OperatorExpression"
+   ]
+  },
+  {
+   "name": "ConstructorExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.3",
+   "src": "kerml10 L12819",
+   "general": [
+    "InstantiationExpression"
+   ]
+  },
+  {
+   "name": "FeatureChainExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.4",
+   "src": "kerml10 L12913",
+   "general": [
+    "OperatorExpression"
+   ]
+  },
+  {
+   "name": "FeatureReferenceExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.5",
+   "src": "kerml10 L13017",
+   "general": [
+    "Expression"
+   ]
+  },
+  {
+   "name": "IndexExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.6",
+   "src": "kerml10 L13142",
+   "general": [
+    "OperatorExpression"
+   ]
+  },
+  {
+   "name": "InstantiationExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.7",
+   "src": "kerml10 L13182",
+   "general": [
+    "Expression"
+   ]
+  },
+  {
+   "name": "InvocationExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.8",
+   "src": "kerml10 L13249",
+   "general": [
+    "InstantiationExpression"
+   ]
+  },
+  {
+   "name": "LiteralBoolean",
+   "lang": "KerML",
+   "section": "8.3.4.8.9",
+   "src": "kerml10 L13383",
+   "general": [
+    "LiteralExpression"
+   ]
+  },
+  {
+   "name": "LiteralExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.10",
+   "src": "kerml10 L13419",
+   "general": [
+    "Expression"
+   ]
+  },
+  {
+   "name": "LiteralInfinity",
+   "lang": "KerML",
+   "section": "8.3.4.8.11",
+   "src": "kerml10 L13466",
+   "general": [
+    "LiteralExpression"
+   ]
+  },
+  {
+   "name": "LiteralInteger",
+   "lang": "KerML",
+   "section": "8.3.4.8.12",
+   "src": "kerml10 L13494",
+   "general": [
+    "LiteralExpression"
+   ]
+  },
+  {
+   "name": "LiteralRational",
+   "lang": "KerML",
+   "section": "8.3.4.8.13",
+   "src": "kerml10 L13529",
+   "general": [
+    "LiteralExpression"
+   ]
+  },
+  {
+   "name": "LiteralString",
+   "lang": "KerML",
+   "section": "8.3.4.8.14",
+   "src": "kerml10 L13561",
+   "general": [
+    "LiteralExpression"
+   ]
+  },
+  {
+   "name": "MetadataAccessExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.15",
+   "src": "kerml10 L13597",
+   "general": [
+    "Expression"
+   ]
+  },
+  {
+   "name": "NullExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.16",
+   "src": "kerml10 L13674",
+   "general": [
+    "Expression"
+   ]
+  },
+  {
+   "name": "OperatorExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.17",
+   "src": "kerml10 L13715",
+   "general": [
+    "InvocationExpression"
+   ]
+  },
+  {
+   "name": "SelectExpression",
+   "lang": "KerML",
+   "section": "8.3.4.8.18",
+   "src": "kerml10 L13752",
+   "general": [
+    "OperatorExpression"
+   ]
+  },
+  {
+   "name": "Flow",
+   "lang": "KerML",
+   "section": "8.3.4.9.2",
+   "src": "kerml10 L13848",
+   "general": [
+    "Step",
+    "Connector"
+   ]
+  },
+  {
+   "name": "FlowEnd",
+   "lang": "KerML",
+   "section": "8.3.4.9.3",
+   "src": "kerml10 L13970",
+   "general": [
+    "Feature"
+   ]
+  },
+  {
+   "name": "Interaction",
+   "lang": "KerML",
+   "section": "8.3.4.9.4",
+   "src": "kerml10 L14015",
+   "general": [
+    "Behavior",
+    "Association"
+   ]
+  },
+  {
+   "name": "PayloadFeature",
+   "lang": "KerML",
+   "section": "8.3.4.9.5",
+   "src": "kerml10 L14039",
+   "general": [
+    "Feature"
+   ]
+  },
+  {
+   "name": "SuccessionFlow",
+   "lang": "KerML",
+   "section": "8.3.4.9.6",
+   "src": "kerml10 L14071",
+   "general": [
+    "Flow",
+    "Succession"
+   ]
+  },
+  {
+   "name": "FeatureValue",
+   "lang": "KerML",
+   "section": "8.3.4.10.2",
+   "src": "kerml10 L14123",
+   "general": [
+    "OwningMembership"
+   ]
+  },
+  {
+   "name": "MultiplicityRange",
+   "lang": "KerML",
+   "section": "8.3.4.11.2",
+   "src": "kerml10 L14253",
+   "general": [
+    "Multiplicity"
+   ]
+  },
+  {
+   "name": "Metaclass",
+   "lang": "KerML",
+   "section": "8.3.4.12.2",
+   "src": "kerml10 L14427",
+   "general": [
+    "Structure"
+   ]
+  },
+  {
+   "name": "MetadataFeature",
+   "lang": "KerML",
+   "section": "8.3.4.12.3",
+   "src": "kerml10 L14454",
+   "general": [
+    "AnnotatingElement",
+    "Feature"
+   ]
+  },
+  {
+   "name": "ElementFilterMembership",
+   "lang": "KerML",
+   "section": "8.3.4.13.2",
+   "src": "kerml10 L14651",
+   "general": [
+    "OwningMembership"
+   ]
+  },
+  {
+   "name": "LibraryPackage",
+   "lang": "KerML",
+   "section": "8.3.4.13.3",
+   "src": "kerml10 L14694",
+   "general": [
+    "Package"
+   ]
+  },
+  {
+   "name": "Package",
+   "lang": "KerML",
+   "section": "8.3.4.13.4",
+   "src": "kerml10 L14729",
+   "general": [
+    "Namespace"
+   ]
+  },
+  {
+   "name": "Definition",
+   "lang": "SysML",
+   "section": "8.3.6.2",
+   "src": "sysml20 L16289",
+   "general": [
+    "Classifier"
+   ]
+  },
+  {
+   "name": "ReferenceUsage",
+   "lang": "SysML",
+   "section": "8.3.6.3",
+   "src": "sysml20 L16685",
+   "general": [
+    "Usage"
+   ]
+  },
+  {
+   "name": "Usage",
+   "lang": "SysML",
+   "section": "8.3.6.4",
+   "src": "sysml20 L16728",
+   "general": [
+    "Feature"
+   ]
+  },
+  {
+   "name": "VariantMembership",
+   "lang": "SysML",
+   "section": "8.3.6.5",
+   "src": "sysml20 L17225",
+   "general": [
+    "OwningMembership"
+   ]
+  },
+  {
+   "name": "AttributeDefinition",
+   "lang": "SysML",
+   "section": "8.3.7.2",
+   "src": "sysml20 L17289",
+   "general": [
+    "Definition",
+    "DataType"
+   ]
+  },
+  {
+   "name": "AttributeUsage",
+   "lang": "SysML",
+   "section": "8.3.7.3",
+   "src": "sysml20 L17325",
+   "general": [
+    "Usage"
+   ]
+  },
+  {
+   "name": "EnumerationDefinition",
+   "lang": "SysML",
+   "section": "8.3.8.2",
+   "src": "sysml20 L17415",
+   "general": [
+    "AttributeDefinition"
+   ]
+  },
+  {
+   "name": "EnumerationUsage",
+   "lang": "SysML",
+   "section": "8.3.8.3",
+   "src": "sysml20 L17455",
+   "general": [
+    "AttributeUsage"
+   ]
+  },
+  {
+   "name": "EventOccurrenceUsage",
+   "lang": "SysML",
+   "section": "8.3.9.2",
+   "src": "sysml20 L17529",
+   "general": [
+    "OccurrenceUsage"
+   ]
+  },
+  {
+   "name": "OccurrenceDefinition",
+   "lang": "SysML",
+   "section": "8.3.9.3",
+   "src": "sysml20 L17607",
+   "general": [
+    "Definition",
+    "Class"
+   ]
+  },
+  {
+   "name": "OccurrenceUsage",
+   "lang": "SysML",
+   "section": "8.3.9.4",
+   "src": "sysml20 L17653",
+   "general": [
+    "Usage"
+   ]
+  },
+  {
+   "name": "PortionKind",
+   "lang": "SysML",
+   "section": "8.3.9.5",
+   "src": "sysml20 L17783",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "ItemDefinition",
+   "lang": "SysML",
+   "section": "8.3.10.2",
+   "src": "sysml20 L17840",
+   "general": [
+    "Structure",
+    "OccurrenceDefinition"
+   ]
+  },
+  {
+   "name": "ItemUsage",
+   "lang": "SysML",
+   "section": "8.3.10.3",
+   "src": "sysml20 L17875",
+   "general": [
+    "OccurrenceUsage"
+   ]
+  },
+  {
+   "name": "PartDefinition",
+   "lang": "SysML",
+   "section": "8.3.11.2",
+   "src": "sysml20 L17954",
+   "general": [
+    "ItemDefinition"
+   ]
+  },
+  {
+   "name": "PartUsage",
+   "lang": "SysML",
+   "section": "8.3.11.3",
+   "src": "sysml20 L17981",
+   "general": [
+    "ItemUsage"
+   ]
+  },
+  {
+   "name": "ConjugatedPortDefinition",
+   "lang": "SysML",
+   "section": "8.3.12.2",
+   "src": "sysml20 L18130",
+   "general": [
+    "PortDefinition"
+   ]
+  },
+  {
+   "name": "ConjugatedPortTyping",
+   "lang": "SysML",
+   "section": "8.3.12.3",
+   "src": "sysml20 L18184",
+   "general": [
+    "FeatureTyping"
+   ]
+  },
+  {
+   "name": "PortConjugation",
+   "lang": "SysML",
+   "section": "8.3.12.4",
+   "src": "sysml20 L18222",
+   "general": [
+    "Conjugation"
+   ]
+  },
+  {
+   "name": "PortDefinition",
+   "lang": "SysML",
+   "section": "8.3.12.5",
+   "src": "sysml20 L18258",
+   "general": [
+    "Structure",
+    "OccurrenceDefinition"
+   ]
+  },
+  {
+   "name": "PortUsage",
+   "lang": "SysML",
+   "section": "8.3.12.6",
+   "src": "sysml20 L18324",
+   "general": [
+    "OccurrenceUsage"
+   ]
+  },
+  {
+   "name": "BindingConnectorAsUsage",
+   "lang": "SysML",
+   "section": "8.3.13.2",
+   "src": "sysml20 L18467",
+   "general": [
+    "ConnectorAsUsage",
+    "BindingConnector"
+   ]
+  },
+  {
+   "name": "ConnectionDefinition",
+   "lang": "SysML",
+   "section": "8.3.13.3",
+   "src": "sysml20 L18490",
+   "general": [
+    "PartDefinition",
+    "AssociationStructure"
+   ]
+  },
+  {
+   "name": "ConnectionUsage",
+   "lang": "SysML",
+   "section": "8.3.13.4",
+   "src": "sysml20 L18543",
+   "general": [
+    "PartUsage",
+    "ConnectorAsUsage"
+   ]
+  },
+  {
+   "name": "ConnectorAsUsage",
+   "lang": "SysML",
+   "section": "8.3.13.5",
+   "src": "sysml20 L18589",
+   "general": [
+    "Connector",
+    "Usage"
+   ]
+  },
+  {
+   "name": "SuccessionAsUsage",
+   "lang": "SysML",
+   "section": "8.3.13.6",
+   "src": "sysml20 L18614",
+   "general": [
+    "Succession",
+    "ConnectorAsUsage"
+   ]
+  },
+  {
+   "name": "InterfaceDefinition",
+   "lang": "SysML",
+   "section": "8.3.14.2",
+   "src": "sysml20 L18686",
+   "general": [
+    "ConnectionDefinition"
+   ]
+  },
+  {
+   "name": "InterfaceUsage",
+   "lang": "SysML",
+   "section": "8.3.14.3",
+   "src": "sysml20 L18727",
+   "general": [
+    "ConnectionUsage"
+   ]
+  },
+  {
+   "name": "AllocationDefinition",
+   "lang": "SysML",
+   "section": "8.3.15.2",
+   "src": "sysml20 L18816",
+   "general": [
+    "ConnectionDefinition"
+   ]
+  },
+  {
+   "name": "AllocationUsage",
+   "lang": "SysML",
+   "section": "8.3.15.3",
+   "src": "sysml20 L18860",
+   "general": [
+    "ConnectionUsage"
+   ]
+  },
+  {
+   "name": "FlowDefinition",
+   "lang": "SysML",
+   "section": "8.3.16.2",
+   "src": "sysml20 L18936",
+   "general": [
+    "ActionDefinition",
+    "Interaction"
+   ]
+  },
+  {
+   "name": "FlowUsage",
+   "lang": "SysML",
+   "section": "8.3.16.3",
+   "src": "sysml20 L18985",
+   "general": [
+    "Flow",
+    "ActionUsage",
+    "ConnectorAsUsage"
+   ]
+  },
+  {
+   "name": "SuccessionFlowUsage",
+   "lang": "SysML",
+   "section": "8.3.16.4",
+   "src": "sysml20 L19029",
+   "general": [
+    "FlowUsage",
+    "SuccessionFlow"
+   ]
+  },
+  {
+   "name": "AcceptActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.2",
+   "src": "sysml20 L19255",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "ActionDefinition",
+   "lang": "SysML",
+   "section": "8.3.17.3",
+   "src": "sysml20 L19373",
+   "general": [
+    "Behavior",
+    "OccurrenceDefinition"
+   ]
+  },
+  {
+   "name": "ActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.4",
+   "src": "sysml20 L19415",
+   "general": [
+    "Step",
+    "OccurrenceUsage"
+   ]
+  },
+  {
+   "name": "AssignmentActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.5",
+   "src": "sysml20 L19534",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "ControlNode",
+   "lang": "SysML",
+   "section": "8.3.17.6",
+   "src": "sysml20 L19664",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "DecisionNode",
+   "lang": "SysML",
+   "section": "8.3.17.7",
+   "src": "sysml20 L19740",
+   "general": [
+    "ControlNode"
+   ]
+  },
+  {
+   "name": "ForkNode",
+   "lang": "SysML",
+   "section": "8.3.17.8",
+   "src": "sysml20 L19794",
+   "general": [
+    "ControlNode"
+   ]
+  },
+  {
+   "name": "ForLoopActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.9",
+   "src": "sysml20 L19832",
+   "general": [
+    "LoopActionUsage"
+   ]
+  },
+  {
+   "name": "IfActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.10",
+   "src": "sysml20 L19921",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "JoinNode",
+   "lang": "SysML",
+   "section": "8.3.17.11",
+   "src": "sysml20 L20027",
+   "general": [
+    "ControlNode"
+   ]
+  },
+  {
+   "name": "LoopActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.12",
+   "src": "sysml20 L20061",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "MergeNode",
+   "lang": "SysML",
+   "section": "8.3.17.13",
+   "src": "sysml20 L20102",
+   "general": [
+    "ControlNode"
+   ]
+  },
+  {
+   "name": "PerformActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.14",
+   "src": "sysml20 L20158",
+   "general": [
+    "ActionUsage",
+    "EventOccurrenceUsage"
+   ]
+  },
+  {
+   "name": "SendActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.15",
+   "src": "sysml20 L20214",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "TerminateActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.16",
+   "src": "sysml20 L20293",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "TriggerInvocationExpression",
+   "lang": "SysML",
+   "section": "8.3.17.17",
+   "src": "sysml20 L20344",
+   "general": [
+    "InvocationExpression"
+   ]
+  },
+  {
+   "name": "TriggerKind",
+   "lang": "SysML",
+   "section": "8.3.17.18",
+   "src": "sysml20 L20426",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "WhileLoopActionUsage",
+   "lang": "SysML",
+   "section": "8.3.17.19",
+   "src": "sysml20 L20457",
+   "general": [
+    "LoopActionUsage"
+   ]
+  },
+  {
+   "name": "ExhibitStateUsage",
+   "lang": "SysML",
+   "section": "8.3.18.2",
+   "src": "sysml20 L20677",
+   "general": [
+    "PerformActionUsage",
+    "StateUsage"
+   ]
+  },
+  {
+   "name": "StateSubactionKind",
+   "lang": "SysML",
+   "section": "8.3.18.3",
+   "src": "sysml20 L20725",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "StateSubactionMembership",
+   "lang": "SysML",
+   "section": "8.3.18.4",
+   "src": "sysml20 L20754",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "StateDefinition",
+   "lang": "SysML",
+   "section": "8.3.18.5",
+   "src": "sysml20 L20788",
+   "general": [
+    "ActionDefinition"
+   ]
+  },
+  {
+   "name": "StateUsage",
+   "lang": "SysML",
+   "section": "8.3.18.6",
+   "src": "sysml20 L20919",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "TransitionFeatureKind",
+   "lang": "SysML",
+   "section": "8.3.18.7",
+   "src": "sysml20 L21083",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "TransitionFeatureMembership",
+   "lang": "SysML",
+   "section": "8.3.18.8",
+   "src": "sysml20 L21108",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "TransitionUsage",
+   "lang": "SysML",
+   "section": "8.3.18.9",
+   "src": "sysml20 L21172",
+   "general": [
+    "ActionUsage"
+   ]
+  },
+  {
+   "name": "CalculationDefinition",
+   "lang": "SysML",
+   "section": "8.3.19.2",
+   "src": "sysml20 L21486",
+   "general": [
+    "ActionDefinition",
+    "Function"
+   ]
+  },
+  {
+   "name": "CalculationUsage",
+   "lang": "SysML",
+   "section": "8.3.19.3",
+   "src": "sysml20 L21526",
+   "general": [
+    "ActionUsage",
+    "Expression"
+   ]
+  },
+  {
+   "name": "AssertConstraintUsage",
+   "lang": "SysML",
+   "section": "8.3.20.2",
+   "src": "sysml20 L21626",
+   "general": [
+    "Invariant",
+    "ConstraintUsage"
+   ]
+  },
+  {
+   "name": "ConstraintDefinition",
+   "lang": "SysML",
+   "section": "8.3.20.3",
+   "src": "sysml20 L21690",
+   "general": [
+    "Predicate",
+    "OccurrenceDefinition"
+   ]
+  },
+  {
+   "name": "ConstraintUsage",
+   "lang": "SysML",
+   "section": "8.3.20.4",
+   "src": "sysml20 L21722",
+   "general": [
+    "BooleanExpression",
+    "OccurrenceUsage"
+   ]
+  },
+  {
+   "name": "ActorMembership",
+   "lang": "SysML",
+   "section": "8.3.21.2",
+   "src": "sysml20 L22011",
+   "general": [
+    "ParameterMembership"
+   ]
+  },
+  {
+   "name": "ConcernDefinition",
+   "lang": "SysML",
+   "section": "8.3.21.3",
+   "src": "sysml20 L22044",
+   "general": [
+    "RequirementDefinition"
+   ]
+  },
+  {
+   "name": "ConcernUsage",
+   "lang": "SysML",
+   "section": "8.3.21.4",
+   "src": "sysml20 L22076",
+   "general": [
+    "RequirementUsage"
+   ]
+  },
+  {
+   "name": "FramedConcernMembership",
+   "lang": "SysML",
+   "section": "8.3.21.5",
+   "src": "sysml20 L22123",
+   "general": [
+    "RequirementConstraintMembership"
+   ]
+  },
+  {
+   "name": "RequirementConstraintKind",
+   "lang": "SysML",
+   "section": "8.3.21.6",
+   "src": "sysml20 L22162",
+   "general": [],
+   "enum": true
+  },
+  {
+   "name": "RequirementConstraintMembership",
+   "lang": "SysML",
+   "section": "8.3.21.7",
+   "src": "sysml20 L22189",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "RequirementDefinition",
+   "lang": "SysML",
+   "section": "8.3.21.8",
+   "src": "sysml20 L22255",
+   "general": [
+    "ConstraintDefinition"
+   ]
+  },
+  {
+   "name": "RequirementUsage",
+   "lang": "SysML",
+   "section": "8.3.21.9",
+   "src": "sysml20 L22410",
+   "general": [
+    "ConstraintUsage"
+   ]
+  },
+  {
+   "name": "SatisfyRequirementUsage",
+   "lang": "SysML",
+   "section": "8.3.21.10",
+   "src": "sysml20 L22607",
+   "general": [
+    "AssertConstraintUsage",
+    "RequirementUsage"
+   ]
+  },
+  {
+   "name": "SubjectMembership",
+   "lang": "SysML",
+   "section": "8.3.21.11",
+   "src": "sysml20 L22691",
+   "general": [
+    "ParameterMembership"
+   ]
+  },
+  {
+   "name": "StakeholderMembership",
+   "lang": "SysML",
+   "section": "8.3.21.12",
+   "src": "sysml20 L22730",
+   "general": [
+    "ParameterMembership"
+   ]
+  },
+  {
+   "name": "CaseDefinition",
+   "lang": "SysML",
+   "section": "8.3.22.2",
+   "src": "sysml20 L22857",
+   "general": [
+    "CalculationDefinition"
+   ]
+  },
+  {
+   "name": "CaseUsage",
+   "lang": "SysML",
+   "section": "8.3.22.3",
+   "src": "sysml20 L22956",
+   "general": [
+    "CalculationUsage"
+   ]
+  },
+  {
+   "name": "ObjectiveMembership",
+   "lang": "SysML",
+   "section": "8.3.22.4",
+   "src": "sysml20 L23071",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "AnalysisCaseDefinition",
+   "lang": "SysML",
+   "section": "8.3.23.2",
+   "src": "sysml20 L23163",
+   "general": [
+    "CaseDefinition"
+   ]
+  },
+  {
+   "name": "AnalysisCaseUsage",
+   "lang": "SysML",
+   "section": "8.3.23.3",
+   "src": "sysml20 L23210",
+   "general": [
+    "CaseUsage"
+   ]
+  },
+  {
+   "name": "RequirementVerificationMembership",
+   "lang": "SysML",
+   "section": "8.3.24.2",
+   "src": "sysml20 L23355",
+   "general": [
+    "RequirementConstraintMembership"
+   ]
+  },
+  {
+   "name": "VerificationCaseDefinition",
+   "lang": "SysML",
+   "section": "8.3.24.3",
+   "src": "sysml20 L23405",
+   "general": [
+    "CaseDefinition"
+   ]
+  },
+  {
+   "name": "VerificationCaseUsage",
+   "lang": "SysML",
+   "section": "8.3.24.4",
+   "src": "sysml20 L23454",
+   "general": [
+    "CaseUsage"
+   ]
+  },
+  {
+   "name": "IncludeUseCaseUsage",
+   "lang": "SysML",
+   "section": "8.3.25.2",
+   "src": "sysml20 L23583",
+   "general": [
+    "PerformActionUsage",
+    "UseCaseUsage"
+   ]
+  },
+  {
+   "name": "UseCaseDefinition",
+   "lang": "SysML",
+   "section": "8.3.25.3",
+   "src": "sysml20 L23633",
+   "general": [
+    "CaseDefinition"
+   ]
+  },
+  {
+   "name": "UseCaseUsage",
+   "lang": "SysML",
+   "section": "8.3.25.4",
+   "src": "sysml20 L23677",
+   "general": [
+    "CaseUsage"
+   ]
+  },
+  {
+   "name": "Expose",
+   "lang": "SysML",
+   "section": "8.3.26.2",
+   "src": "sysml20 L23933",
+   "general": [
+    "Import"
+   ]
+  },
+  {
+   "name": "MembershipExpose",
+   "lang": "SysML",
+   "section": "8.3.26.3",
+   "src": "sysml20 L23982",
+   "general": [
+    "MembershipImport",
+    "Expose"
+   ]
+  },
+  {
+   "name": "NamespaceExpose",
+   "lang": "SysML",
+   "section": "8.3.26.4",
+   "src": "sysml20 L24009",
+   "general": [
+    "NamespaceImport",
+    "Expose"
+   ]
+  },
+  {
+   "name": "RenderingDefinition",
+   "lang": "SysML",
+   "section": "8.3.26.5",
+   "src": "sysml20 L24033",
+   "general": [
+    "PartDefinition"
+   ]
+  },
+  {
+   "name": "RenderingUsage",
+   "lang": "SysML",
+   "section": "8.3.26.6",
+   "src": "sysml20 L24073",
+   "general": [
+    "PartUsage"
+   ]
+  },
+  {
+   "name": "ViewDefinition",
+   "lang": "SysML",
+   "section": "8.3.26.7",
+   "src": "sysml20 L24127",
+   "general": [
+    "PartDefinition"
+   ]
+  },
+  {
+   "name": "ViewpointDefinition",
+   "lang": "SysML",
+   "section": "8.3.26.8",
+   "src": "sysml20 L24219",
+   "general": [
+    "RequirementDefinition"
+   ]
+  },
+  {
+   "name": "ViewpointUsage",
+   "lang": "SysML",
+   "section": "8.3.26.9",
+   "src": "sysml20 L24263",
+   "general": [
+    "RequirementUsage"
+   ]
+  },
+  {
+   "name": "ViewRenderingMembership",
+   "lang": "SysML",
+   "section": "8.3.26.10",
+   "src": "sysml20 L24322",
+   "general": [
+    "FeatureMembership"
+   ]
+  },
+  {
+   "name": "ViewUsage",
+   "lang": "SysML",
+   "section": "8.3.26.11",
+   "src": "sysml20 L24377",
+   "general": [
+    "PartUsage"
+   ]
+  },
+  {
+   "name": "MetadataDefinition",
+   "lang": "SysML",
+   "section": "8.3.27.2",
+   "src": "sysml20 L24539",
+   "general": [
+    "ItemDefinition",
+    "Metaclass"
+   ]
+  },
+  {
+   "name": "MetadataUsage",
+   "lang": "SysML",
+   "section": "8.3.27.3",
+   "src": "sysml20 L24571",
+   "general": [
+    "MetadataFeature",
+    "ItemUsage"
+   ]
+  }
+ ]
+}

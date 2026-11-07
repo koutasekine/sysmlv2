@@ -1,0 +1,313 @@
+{
+ "_説明": "警告 W1 の表(GR19 指示書 3.1 節、設計書 9.2 節)。node tools/model/extract_w1.mjs で out/text/sysml20.txt(SysML 2.0)の 7 章から抜き出した(手で編集しない)。entries は「… usage must (may) only be defined by …」の形の記述で、usage は使用の種類(メタクラス)、allowed は許される定義の種類(メタクラス。下位の種類を含む)、section・line は本文の節と行。excluded は表に入れなかった記述と理由。",
+ "source": "out/text/sysml20.txt",
+ "entries": [
+  {
+   "usage": "AttributeUsage",
+   "usageText": "attribute usage",
+   "modal": "may",
+   "allowed": [
+    {
+     "kind": "AttributeDefinition",
+     "text": "attribute definitions"
+    },
+    {
+     "kind": "DataType",
+     "text": "KerML data types"
+    }
+   ],
+   "section": "7.7.2",
+   "line": 3666,
+   "sentence": "An attribute usage may only be defined by attribute definitions or KerML data types."
+  },
+  {
+   "usage": "OccurrenceUsage",
+   "usageText": "occurrence usage",
+   "modal": "may",
+   "allowed": [
+    {
+     "kind": "OccurrenceDefinition",
+     "text": "occurrence definitions (of any kind)",
+     "note": "of any kind"
+    },
+    {
+     "kind": "Class",
+     "text": "KerML classes"
+    }
+   ],
+   "kerml": "7.4.3",
+   "section": "7.9.2",
+   "line": 4080,
+   "sentence": "An occurrence usage may only be defined by occurrence definitions (of any kind) or KerML classes (see [KerML, 7.4.3])."
+  },
+  {
+   "usage": "ItemUsage",
+   "usageText": "item usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "ItemDefinition",
+     "text": "item definitions (of any kind)",
+     "note": "of any kind"
+    },
+    {
+     "kind": "Structure",
+     "text": "KerML structures"
+    }
+   ],
+   "kerml": "7.4.4",
+   "section": "7.10.2",
+   "line": 4297,
+   "sentence": "An item usage must only be defined by item definitions (of any kind) or KerML structures (see [KerML, 7.4.4])."
+  },
+  {
+   "usage": "PartUsage",
+   "usageText": "part usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "ItemDefinition",
+     "text": "item definitions (including part definitions)",
+     "note": "including part definitions"
+    },
+    {
+     "kind": "Structure",
+     "text": "KerML structures"
+    }
+   ],
+   "kerml": "7.4.4",
+   "section": "7.11.2",
+   "line": 4473,
+   "sentence": "a part usage must only be defined by item definitions (including part definitions) or KerML structures (see [KerML, 7.4.4])."
+  },
+  {
+   "usage": "PortUsage",
+   "usageText": "port usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "PortDefinition",
+     "text": "port definitions"
+    }
+   ],
+   "section": "7.12.2",
+   "line": 4596,
+   "sentence": "A port usage must only be defined by port definitions."
+  },
+  {
+   "usage": "ConnectionUsage",
+   "usageText": "connection usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "ConnectionDefinition",
+     "text": "connection definitions (of any kind)",
+     "note": "of any kind"
+    },
+    {
+     "kind": "AssociationStructure",
+     "text": "KerML association structures"
+    }
+   ],
+   "kerml": "7.4.5",
+   "section": "7.13.2",
+   "line": 4906,
+   "sentence": "A connection usage must only be defined by connection definitions (of any kind) or KerML association structures (see [KerML, 7.4.5])."
+  },
+  {
+   "usage": "InterfaceUsage",
+   "usageText": "interface usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "InterfaceDefinition",
+     "text": "interface definitions"
+    }
+   ],
+   "section": "7.14.2",
+   "line": 5459,
+   "sentence": "An interface usage must only be defined by interface definitions."
+  },
+  {
+   "usage": "AllocationUsage",
+   "usageText": "allocation usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "AllocationDefinition",
+     "text": "allocation definitions"
+    }
+   ],
+   "section": "7.15.2",
+   "line": 5617,
+   "sentence": "An allocation usage must only be defined by allocation definitions."
+  },
+  {
+   "usage": "FlowUsage",
+   "usageText": "flow usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "FlowDefinition",
+     "text": "flow definitions"
+    },
+    {
+     "kind": "Interaction",
+     "text": "KerML interactions"
+    }
+   ],
+   "kerml": "7.4.10",
+   "section": "7.16.2",
+   "line": 5804,
+   "sentence": "A flow usage must only be defined by flow definitions or KerML interactions (see [KerML, 7.4.10])."
+  },
+  {
+   "usage": "ActionUsage",
+   "usageText": "action usage",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "ActionDefinition",
+     "text": "action definitions (of any kind)",
+     "note": "of any kind"
+    },
+    {
+     "kind": "Behavior",
+     "text": "KerML behaviors"
+    }
+   ],
+   "kerml": "7.4.7",
+   "section": "7.17.2",
+   "line": 6638,
+   "sentence": "An action usage must only be defined by action definitions (of any kind) or KerML behaviors (see [KerML, 7.4.7])."
+  },
+  {
+   "usage": "PartUsage",
+   "usageText": "Actor and stakeholder parameters (part usages)",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "PartDefinition",
+     "text": "part definitions"
+    }
+   ],
+   "memberships": [
+    "ActorMembership",
+    "StakeholderMembership"
+   ],
+   "roles": [
+    "actor",
+    "stakeholder"
+   ],
+   "owners": [
+    "RequirementDefinition",
+    "RequirementUsage"
+   ],
+   "ownerText": "A requirement definition or usage may also have one or more actor or stakeholder parameters",
+   "see": "7.11.2",
+   "section": "7.21.2",
+   "line": 8760,
+   "sentence": "Actor and stakeholder parameters are part usages, so they must be (explicitly or implicitly) defined by part definitions (see 7.11.2)."
+  },
+  {
+   "usage": "PartUsage",
+   "usageText": "Actor parameters (part usages)",
+   "modal": "must",
+   "allowed": [
+    {
+     "kind": "PartDefinition",
+     "text": "part definitions"
+    }
+   ],
+   "memberships": [
+    "ActorMembership"
+   ],
+   "roles": [
+    "actor"
+   ],
+   "owners": [
+    "CaseDefinition",
+    "CaseUsage"
+   ],
+   "ownerText": "A case definition or usage may also have one or more actor parameters",
+   "see": "7.11.2",
+   "section": "7.22.2",
+   "line": 8966,
+   "sentence": "Actor parameters are part usages, so they must be (explicitly or implicitly) defined by part definitions (see 7.11.2)."
+  }
+ ],
+ "excluded": [
+  {
+   "section": "7.6.1",
+   "line": 2768,
+   "sentence": "A usage must always be defined by at least one definition element that corresponds to its usage kind.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.8.2",
+   "line": 3814,
+   "sentence": "an enumeration usage must be explicitly defined by a single enumeration definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.20.2",
+   "line": 8341,
+   "sentence": "A constraint usage must be defined by a single constraint definition or a KerML predicate (see [KerML, 7.4.8]).",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.21.2",
+   "line": 8678,
+   "sentence": "A requirement usage must be defined by a single requirement definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.22.2",
+   "line": 8953,
+   "sentence": "A case usage must be defined by a single case definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.23.2",
+   "line": 9096,
+   "sentence": "An analysis case usage must be defined by a single analysis case definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.24.2",
+   "line": 9349,
+   "sentence": "A verification case usage must be defined by a single verification case definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.25.2",
+   "line": 9545,
+   "sentence": "A use case usage must be defined by a single use case definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.26.2",
+   "line": 9795,
+   "sentence": "A view usage must be defined by a single view definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.26.3",
+   "line": 9863,
+   "sentence": "A viewpoint usage must be defined by a single viewpoint definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.26.4",
+   "line": 9931,
+   "sentence": "A rendering usage must be defined by a single rendering definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  },
+  {
+   "section": "7.27.1",
+   "line": 10048,
+   "sentence": "A metadata usage is defined by a single metadata definition.",
+   "reason": "形が「… usage must (may) only be defined by …」でない"
+  }
+ ]
+}
