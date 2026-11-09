@@ -49,6 +49,10 @@
 // ビルドした HTML(その場で buildHtml で作る。--html なら、そのファイル)の中のスクリプトを動かし、配置の幅が数値の px で layout.js の widths と同じことを確かめる
 // node tests/view/app_main.mjs --gr25f は、上の代わりに GR25 の P4 の検査(GR25 指示書 v25.2 の F)をする。フォルダの名前の変更・移動・コピーが途中で
 // 失敗したとき、写す先に作ったものを消すこと
+// node tests/view/app_main.mjs --gr27 [--built] は、上の代わりに GR27 の検査(GR27 指示書 4 章の O・L。モデルツリーと範囲の候補の受け渡しと、
+// 大きいファイルの知らせ)をする。説明は gr27 の前
+// node tests/view/app_main.mjs --gr27p5 [--built] は、上の代わりに GR27 の P5 の検査(GR27 指示書 v27.4 の S・M。範囲の欄の候補の文字と、
+// モデルツリーの行を見えている分だけ並べること)をする。--dump <ファイル> [--mfile <.sysml>] なら、検査の代わりに行と範囲の欄を書き出す。説明は gr27p5 の前
 // node tests/view/app_main.mjs --gr20 は、上の代わりに GR20 の検査(GR20 指示書 4 章の F。フォルダの段階 A)をする:
 //   フォルダの読み込み(選ぶ画面の偽物・webkitdirectory の欄の偽物・ドロップの偽物の 3 通り。. で始まるフォルダと .sysml でないファイルを
 //   読まない、.sysml がないときの理由)、「ファイル」の選択欄と書き換えの印、ファイルを切り替えてもテキスト欄(取り消しの履歴)が残る、
@@ -229,6 +233,7 @@ const threads = [];
 // GR26 の P5 の A: hold.on の間は、解析の結果を画面に渡さずに止めておき、hold.release() で渡す(前のテキストの解析の結果が、書き換えの後に
 // 届く形を作るため。ほかの検査では使わない)
 const hold = { on: false, queue: [], release() { const q = this.queue.splice(0); for (const f of q) f(); } };
+let runHook = null; // GR27 P5: 解析を頼んだ直後(analyze が終わった後の microtask)に一度だけ呼ぶ(処理中の画面の状態を見る)
 globalThis.Worker = class {
   constructor() {
     const w = new ThreadWorker(path.join(ROOT, 'tests/view/worker_thread.mjs'));
@@ -243,7 +248,7 @@ globalThis.Worker = class {
     });
     w.on('error', (e) => { try { this.onerror?.(e); } catch (x) { errors.push(`onerror: ${x?.message ?? x}`); } });
   }
-  postMessage(m) { if (m?.type === 'run') runText.set(m.id, m.text); this._w.postMessage(m); }
+  postMessage(m) { if (m?.type === 'run') { runText.set(m.id, m.text); if (runHook) { const h = runHook; runHook = null; queueMicrotask(h); } } this._w.postMessage(m); }
   terminate() { this._w.terminate(); }
 };
 
@@ -2036,6 +2041,7 @@ function readZipBytes(bytes) {
   }
   return out;
 }
+const G27MT = await import('../../src/app/modeltree.js'); // GR27 の P2: 結果の受け渡しの形を戻す(予定の red の 1 の置き換え)
 // ---- モデル: .sysml の名前を変えた・移しただけでは名前解決・意味エラー・警告が変わらない。拡張子の変更で入る・外れる
 async function gr24model() {
   const FILES = { 'lib.sysml': 'package Lib { part def Lamp; }\n', 'use.sysml': 'package Use { private import Lib::*; part l : Lamp; part m : Lib::Nope; action def A; part p : A; }\n', 'more.txt': 'package More { part def Extra; }\n' };
@@ -2049,7 +2055,9 @@ async function gr24model() {
   check(!!r0 && summary(r0) === summary(r1) && summary(r1) === summary(r2) && paths(r0).every((p) => p === 'use.sysml') && paths(r1).every((p) => p === 'use2.sysml') && paths(r2).every((p) => p === 'dir/use2.sysml') && paths(r0).length === 2,
     'GR24 モデル: .sysml の名前を変えた・移しただけでは、意味エラー・警告・未検査・曖昧・描く範囲の候補が変わらず、診断の相対パスだけが変わる', `${summary(r0)} / ${summary(r2)} / ${paths(r0)} → ${paths(r2)}`);
   clickRow('more.txt'); treeKeyDown('F2'); n0 = results.length; enterName('more.sysml'); const r3 = await opDone(n0);
-  const inModel = !!r3 && r3.m.folder.files.map((f) => f.path).includes('more.sysml') && !rowOf('more.sysml')?.cls.includes('dim') && r3.m.candidates.some((c) => /More/.test(c.label));
+  // GR27 の P2 で置き換えた(予定の red の 1。O): 結果の候補は受け渡しの形(修飾名の表を指す形)なので、画面の戻し方(src/app/modeltree.js の
+  // unpackCandidates)で戻してから表示の文字を確かめる(前は r3.m.candidates.some((c) => /More/.test(c.label)))
+  const inModel = !!r3 && r3.m.folder.files.map((f) => f.path).includes('more.sysml') && !rowOf('more.sysml')?.cls.includes('dim') && G27MT.unpackCandidates(r3.m.candidates, r3.m.paths ?? null).some((c) => /More/.test(c.label));
   clickRow('lib.sysml'); treeKeyDown('F2'); n0 = results.length; enterName('lib.txt'); const r4 = await opDone(n0);
   const outModel = !!r4 && !r4.m.folder.files.map((f) => f.path).includes('lib.txt') && rowOf('lib.txt')?.cls.includes('dim') && r4.m.diagnostics.unchecked.count > r3.m.diagnostics.unchecked.count; // Lib が大域にないので、Lib を指す名前は未検査になる(設計書 9.2 節の S1 の条件)
   check(inModel && outModel, 'GR24 モデル: 拡張子を .sysml に変えたファイルはモデルに入り(テキストを読む)、.sysml から変えたファイルはモデルから外れる(薄く出す)', JSON.stringify({ inModel, outModel, f3: r3?.m.folder.files.map((f) => f.path), f4: r4?.m.folder.files.map((f) => f.path), u3: r3?.m.diagnostics.unchecked.count, u4: r4?.m.diagnostics.unchecked.count }));
@@ -2948,6 +2956,26 @@ const mrows = () => ($('modelBody')?.children ?? []).filter((c) => c._cls.has('m
 });
 // 行の名前と、マウスを載せたときの修飾名で行を探す(q を省けば名前だけ)
 const mrow = (name, q = null) => mrows().find((r) => r.name === name && (!q || r.title.split('\n')[0] === q)) ?? null;
+// GR26 T の大きなモデル(要素 3,302。GR27 P5 で --gr27p5 --dump でも使う)。g26Click は、名前の行が並んでいなければ、全部の行(p5Full)での位置まで
+// スクロールしてから押す(GR27 P5 の M。直す前のコードは全部の行を並べるので、すぐに見つかる)
+const G26BIG_N = 300, G26BIG_P = 10;
+function g26Big() {
+  const big = [`package Big {\n    port def Pin;`];
+  for (let i = 0; i < G26BIG_N; i++) { big.push(`    part def D${i} {`); for (let j = 0; j < G26BIG_P; j++) big.push(`        port p${j} : Pin;`); big.push('    }'); }
+  big.push('}');
+  return big.join('\n') + '\n';
+}
+const g26Row = (r) => `${r.depth}|${r.name}|${r.twisty}`;
+function g26Want(openAll) {
+  const w = ['0|Big|▾', '1|Pin|'];
+  for (let i = 0; i < G26BIG_N; i++) { w.push(`1|D${i}|${openAll ? '▾' : '▸'}`); if (openAll) for (let j = 0; j < G26BIG_P; j++) w.push(`2|p${j}|`); }
+  return w;
+}
+function g26Click(name) {
+  let r = mrow(name);
+  if (!r) { const k = p5Full().findIndex((x) => x.name === name); if (k >= 0) { p5Scroll(k * MH); r = mrow(name); } }
+  mclick(r, 'tw');
+}
 // 行の一部をクリックする(偽の DOM は出来事を親に伝えないので、モデルの本体に、行の中の要素を target にして起こす)
 function mclick(r, part = null) {
   if (!r) return false;
@@ -3128,31 +3156,40 @@ async function gr26lt() {
     check(mrows().every((x) => x.depth === 0 && x.twisty !== '▾'), 'GR26 T: 「モデル」の区画の上の帯の「すべて折りたたむ」で、すべての項目を閉じる', mrows().slice(0, 4).map((x) => `${x.name}${x.twisty}`).join(','));
   }
   // 大きなモデル(要素が数千)での開閉の時間(合否に使わない。開いた項目の分だけを画面に出す)
+  // GR27 P5 の M(予定の red の 4): モデルツリーは見えている範囲の行だけを並べるので、行の数(mrows().length)を前提にしない。開閉は、項目の行が
+  // 並ぶ位置までスクロールしてから押し(g26Click)、開閉の後の全部の行(p5Full。本体を高くして並べ直したもの)の並びを確かめる。直す前の全部の行との
+  // 比べは、tools/perf/gr27_p5cmp.mjs で、--gr27p5 --dump の「GR26 T 大きなモデル」の書き出しを使って行う
   {
-    const N = 300, P = 10;
-    const big = [`package Big {\n    port def Pin;`];
-    for (let i = 0; i < N; i++) { big.push(`    part def D${i} {`); for (let j = 0; j < P; j++) big.push(`        port p${j} : Pin;`); big.push('    }'); }
-    big.push('}');
-    const text = big.join('\n') + '\n';
+    const N = G26BIG_N, P = G26BIG_P;
+    const text = g26Big();
     const n0 = results.length;
     $('btnNew').click();
     await waitFor(() => results.slice(n0).length > 0, 30000);
     const r = await typeText(text);
     const items = r?.m?.outline?.items.length ?? 0;
+    const want0 = g26Want(false), wantAll = g26Want(true);
+    const start = p5Full().map(g26Row);
     const t0 = performance.now();
-    mclick(mrow('Big'), 'tw'); // 閉じる(根は開いて始まる)
+    g26Click('Big'); // 閉じる(根は開いて始まる)
     const tClose = performance.now() - t0;
+    const closed = p5Full().map(g26Row);
     const t1 = performance.now();
-    mclick(mrow('Big'), 'tw'); // 開く(300 行)
+    g26Click('Big'); // 開く(302 行)
     const tOpen = performance.now() - t1;
+    const reopened = p5Full().map(g26Row);
     const t2 = performance.now();
-    for (let i = 0; i < N; i++) mclick(mrow(`D${i}`), 'tw'); // すべての定義を開く(1 回ずつ。最後は 3,301 行)
+    for (let i = 0; i < N; i++) g26Click(`D${i}`); // すべての定義を開く(1 回ずつ。最後は 3,302 行)
     const tAll = performance.now() - t2;
-    const rows = mrows().length;
+    const all = p5Full().map(g26Row);
+    const rows = all.length;
     const t3 = performance.now();
     $('btnModelCollapse').click();
     const tCollapse = performance.now() - t3;
-    check(items === 1 + 1 + N * (1 + P) && rows === 1 + 1 + N * (1 + P), `GR26 T: 大きなモデル(要素 ${items})の開閉(偽の DOM での時間。合否に使わない): 根を閉じる ${tClose.toFixed(1)} ms・開く ${tOpen.toFixed(1)} ms・定義 ${N} 個を 1 つずつ開く合計 ${tAll.toFixed(0)} ms(1 回あたり ${(tAll / N).toFixed(1)} ms、最後は ${rows} 行)・すべて折りたたむ ${tCollapse.toFixed(1)} ms`, `${items} ${rows}`);
+    const collapsed = p5Full().map(g26Row);
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const ok = items === 1 + 1 + N * (1 + P) && same(start, want0) && same(closed, ['0|Big|▸']) && same(reopened, want0) && same(all, wantAll) && same(collapsed, ['0|Big|▸']);
+    check(ok, `GR26 T: 大きなモデル(要素 ${items})の開閉(偽の DOM での時間。合否に使わない): 根を閉じる ${tClose.toFixed(1)} ms・開く ${tOpen.toFixed(1)} ms・定義 ${N} 個を 1 つずつ開く合計 ${tAll.toFixed(0)} ms(1 回あたり ${(tAll / N).toFixed(1)} ms、最後は全部で ${rows} 行)・すべて折りたたむ ${tCollapse.toFixed(1)} ms。開閉のたびに、全部の行の並び(字下げ・名前・開閉の印)が木の形のとおり`,
+      `${items} 始め ${start.length}/${want0.length} 閉じた ${closed.join(',')} 開いた ${reopened.length} 全部 ${rows}/${wantAll.length} 折りたたみ ${collapsed.join(',')}`);
     console.error(`GR26_TIMING items=${items} close=${tClose.toFixed(2)} open=${tOpen.toFixed(2)} allOpen=${tAll.toFixed(1)} perOpen=${(tAll / N).toFixed(2)} rows=${rows} collapse=${tCollapse.toFixed(2)}`);
   }
   check(errors.length === 0 && alerts.length === 0, 'GR26 L・T: 画面の処理を通して、応答の処理の例外と警告の窓が 0 件', [...errors, ...alerts].join(' / '));
@@ -3906,12 +3943,427 @@ async function gr26p6() {
 // 項目の種類(マウスを載せたときの文の「種類: …」でなく、Worker の木の種類。偽の DOM の行には出ないので、行の番号から最後の結果の木を引く)
 function kindOfRow(x) { const o = results.at(-1)?.m.outline; return o?.items[+x.id]?.kind ?? null; }
 
+// ---- GR27 の検査(--gr27。GR27 指示書 4 章の O・L。設計書 9.5 節の「作り直し」と 5 章の大きいファイルの知らせ)。--built なら、src/app/main.js の
+// 代わりにビルドした HTML のスクリプトで(GR25 の形)
+//   O: 例を開いた結果にはモデルツリーがあり、ビューを替えた結果にはない(画面は前のモデルツリーをそのまま出す)。同じテキストを「開く」で
+//      開き直すと(画面がモデルツリーを忘れる)、結果にモデルツリーが入り、木を出す。範囲の欄の候補(値と文字)が、受け渡しの形から
+//      組み立てた後も今と同じ(例の 2 つのビューと、部品の入れ子 300 段)。木の行のマウスを載せたときの修飾名が今と同じ
+//   L: 1,000,000 バイトちょうどのファイルを開いても知らせは出ず、1 バイト超えると出る。フォルダの .sysml の合計でも出る(ちょうどなら出ない)。
+//      書き換え・貼り付けで 1,000,000 バイトを超えたときに 1 回だけ出し、超えたまま書き換えても出し直さない
+//   Q(GR27 P4): 図の要素・線を選んだときの編集欄の「修飾名:」が、描画の関数の構造の info.qname と同じ(例を開いた一般ビューと、部品の入れ子
+//      300 段の相互接続ビューの全要素)。Worker の結果の構造は受け渡しの形(info に qname を持たない)
+const GR27 = process.argv.includes('--gr27'), GR27_BUILT = GR27 && process.argv.includes('--built');
+async function gr27() {
+  const V = await import('../../src/view/index.js');
+  const scopeRows = () => $('scope').options.map((o) => `${o.value}|${o.textContent}`);
+  const wantScope = (text, key) => V.prepareView(text)[key].map((c) => `${c.id}|${c.label}`);
+  const treeRows = () => mrows().map((r) => `${r.depth}|${r.name}|${r.title}`);
+  // O: 例を開く(一般ビュー)→ 相互接続ビューに替える
+  const r1 = (await pickSample('機能紹介')).r;
+  const t1 = $('src').value;
+  const rows1 = treeRows();
+  // Q(GR27 P4): 例を開いた図(一般ビュー)の全要素・線で、選んだときの「修飾名:」が描画の関数の構造の info.qname と同じ
+  {
+    const p1 = V.prepareView(t1);
+    const st1 = V.renderGeneral(p1, r1.m.candidate.id).structure;
+    let n = 0, bad = null;
+    for (const x of [...(st1.frame ? [] : []), ...st1.nodes, ...st1.edges]) {
+      if (!x.info) continue;
+      const g = $('canvas').querySelector(`[data-id="${CSS.escape(x.id)}"]`);
+      if (!g) continue;
+      $('canvas').dispatchEvent({ type: 'click', target: g });
+      n++;
+      const got = $('edit').children.find((c) => c.textContent.startsWith('修飾名: '))?.textContent.slice(5) ?? null;
+      if (got !== (x.info.qname || null)) bad ??= `${x.id}: ${got} / ${x.info.qname}`;
+    }
+    check(r1.m.view === 'general' && n > 10 && !bad && errors.length === 0, 'GR27 Q: 例を開いた一般ビューで、図の要素と線を選んだときの「修飾名:」が今と同じ(受け渡しの形から画面で組み立てたもの)', bad ?? `${n} 件`);
+    $('canvas').dispatchEvent({ type: 'click', target: $('canvas') });
+  }
+  let n0 = results.length;
+  $('viewKind').value = 'interconnection'; $('viewKind').dispatchEvent({ type: 'change' });
+  const r2 = await resultFor(t1, n0);
+  const rows2 = treeRows();
+  check(!!r1 && 'outline' in r1.m && !!r2 && !('outline' in r2.m) && rows1.length > 3 && JSON.stringify(rows1) === JSON.stringify(rows2) && errors.length === 0,
+    'GR27 O: 例を開いた結果にはモデルツリーがあり、ビューを替えた結果にはない。画面は前のモデルツリーをそのまま出す', `開いたとき ${r1 && 'outline' in r1.m}、替えたとき ${r2 && 'outline' in r2.m}、行 ${rows1.length} → ${rows2.length} ${errors.join(' / ')}`);
+  check(JSON.stringify(scopeRows()) === JSON.stringify(wantScope(t1, 'candidates')), 'GR27 O: 相互接続ビューの範囲の欄の候補(値と文字)が、受け渡しの形から組み立てた後も今と同じ', `${scopeRows().slice(0, 2)} / ${wantScope(t1, 'candidates').slice(0, 2)}`);
+  // 同じテキストを「開く」で開き直す(画面はモデルツリーを忘れる)→ 結果にモデルツリーが入り、木を出す(開閉は始めの状態)
+  const r3 = await openBy('open', 'again.sysml', t1);
+  check(!!r3 && 'outline' in r3.m && JSON.stringify(treeRows()) === JSON.stringify(rows1) && errors.length === 0, 'GR27 O: 同じテキストを「開く」で開き直すと、Worker の前の解析と同じテキストでも結果にモデルツリーが入り(needOutline)、木を始めの開閉で出す',
+    `結果 ${r3 ? 'outline' in r3.m : '来ない'}、行 ${treeRows().length}`);
+  check(JSON.stringify(scopeRows()) === JSON.stringify(wantScope(t1, 'generalCandidates')) || JSON.stringify(scopeRows()) === JSON.stringify(wantScope(t1, 'candidates')), 'GR27 O: 開き直した後の範囲の欄の候補が今と同じ', scopeRows().slice(0, 2).join(' '));
+  // 部品の入れ子 300 段: 範囲の欄(相互接続ビュー)と木の行の修飾名
+  const deep = (() => { const L = []; for (let i = 0; i < 299; i++) L.push(`part n${i} {`); L.push('part n299;'); for (let i = 0; i < 299; i++) L.push('}'); return L.join('\n') + '\n'; })();
+  const r4 = await openBy('open', 'deep.sysml', deep);
+  n0 = results.length;
+  if ($('viewKind').value !== 'interconnection') { $('viewKind').value = 'interconnection'; $('viewKind').dispatchEvent({ type: 'change' }); await resultFor(deep, n0); }
+  for (let i = 0; i < 3; i++) { const r = mrows().find((x) => x.twisty === '▸'); if (r) mclick(r, 'tw'); }
+  const titles = mrows().map((r) => r.title.split('\n')[0]);
+  // GR27 P5 の S(予定の red の 3): 候補の文字は、修飾名が 60 字を超えるとき前を「…::」で省く(sRule。設計書 5 章の終わり)。値と、60 字以下の文字は今と同じ
+  const wantScopeS = (text, key) => V.prepareView(text)[key].map((c) => `${c.id}|${sRule(c.label)}`);
+  check(!!r4 && JSON.stringify(scopeRows()) === JSON.stringify(wantScopeS(deep, 'candidates')) && scopeRows().length === 299, 'GR27 O: 部品の入れ子 300 段の範囲の欄の候補(299 件。値と文字。文字は 60 字を超える修飾名の前を「…::」で省いたもの)が、受け渡しの形から組み立てた後も今と同じ', `${scopeRows().length} 件 ${scopeRows().at(-1)?.slice(0, 80)}`);
+  check(JSON.stringify(titles.slice(0, 4)) === JSON.stringify(['n0', 'n0::n1', 'n0::n1::n2', 'n0::n1::n2::n3']) && errors.length === 0, 'GR27 O: 部品の入れ子の木の行の、マウスを載せたときの修飾名が今と同じ(親の修飾名に自分の名前をつないだもの)', titles.slice(0, 4).join(' / '));
+  // Q(GR27 P4): 図の要素を選んだときの編集欄の「修飾名:」が、描画の関数の構造の info.qname と同じ(部品の入れ子 300 段の相互接続ビューの全要素と、
+  // 例の一般ビューの全要素・線)。Worker の結果の構造は受け渡しの形(info に qname がない)
+  const qOf = () => $('edit').children.find((c) => c.textContent.startsWith('修飾名: '))?.textContent.slice(5) ?? null;
+  const clickAll = (st) => {
+    let n = 0, bad = null;
+    for (const x of [...st.nodes, ...st.edges]) {
+      if (!x.info) continue;
+      const g = $('canvas').querySelector(`[data-id="${CSS.escape(x.id)}"]`);
+      if (!g) continue;
+      $('canvas').dispatchEvent({ type: 'click', target: g });
+      n++;
+      const want = x.info.qname ? x.info.qname : null;
+      if (qOf() !== want) bad ??= `${x.id}: ${qOf()} / ${want}`;
+    }
+    return { n, bad };
+  };
+  const rq = results.at(-1);
+  const pq = V.prepareView(deep);
+  const sq = V.renderInterconnection(pq, rq.m.candidate.id).structure;
+  const q1 = clickAll(sq);
+  check(q1.n >= 299 && !q1.bad && !JSON.stringify(rq.m.structure).includes('"qname"') && errors.length === 0, 'GR27 Q: 部品の入れ子 300 段の相互接続ビューで、図の要素を選んだときの「修飾名:」が今と同じ(Worker の結果の構造は qname を持たない受け渡しの形)', q1.bad ?? `${q1.n} 件`);
+  // L: 大きいファイルの知らせ
+  const note = () => $('msg').children.find((c) => c._cls.has('bignote'))?.textContent ?? null;
+  const big = (n) => { const head = 'package P { part def A; }\n// '; return head + 'x'.repeat(n - head.length - 1) + '\n'; };
+  const b0 = big(1000000), b1 = big(1000001);
+  const rb0 = await openBy('open', 'b0.sysml', b0);
+  const n0a = note();
+  const rb1 = await openBy('open', 'b1.sysml', b1);
+  const n1a = note();
+  check(!!rb0 && !!rb1 && n0a === null && n1a === '大きいファイル(1,000,001 バイト)なので、解析に時間がかかります', 'GR27 L: 1,000,000 バイトちょうどのファイルを開いても知らせは出ず、1 バイト超えると診断の欄の上に出る(解析の結果を出した後も残す)', `${n0a} / ${n1a}`);
+  // 書き換え・貼り付け: 小さいテキストから 1,000,000 バイトを超えたときに出し、超えたまま書き換えても出し直さない
+  await typeText('package Q;\n');
+  const s0 = note();
+  const p1 = big(1000005);
+  await typeText(p1);
+  const s1 = note();
+  await typeText(p1.replace('part def A;', 'part def B;'));
+  const s2 = note();
+  check(s0 === null && s1 === '大きいファイル(1,000,005 バイト)なので、解析に時間がかかります' && s2 === null, 'GR27 L: 書き換え・貼り付けで 1,000,000 バイトを超えたときに 1 回だけ出し、超えたまま書き換えても出し直さない', `${s0} / ${s1} / ${s2}`);
+  // フォルダ: .sysml の合計(ちょうどなら出ない、超えると出る)。.sysml でないファイルは数えない
+  const half = (n, nm) => { const head = `package ${nm} { part def A; }\n// `; return head + 'y'.repeat(n - head.length - 1) + '\n'; };
+  const f0 = await loadBy('picker', 'big0', { 'a.sysml': half(500000, 'A0'), 'b.sysml': half(500000, 'B0'), 'c.txt': 'z'.repeat(10) });
+  const fn0 = note();
+  const f1 = await loadBy('picker', 'big1', { 'a.sysml': half(500000, 'A1'), 'b.sysml': half(500001, 'B1') });
+  const fn1 = note();
+  check(!!f0 && !!f1 && fn0 === null && fn1 === '大きいフォルダ(.sysml の合計 1,000,001 バイト)なので、解析に時間がかかります' && errors.length === 0, 'GR27 L: フォルダの .sysml の合計が 1,000,000 バイトちょうどなら出ず、超えると出る', `${fn0} / ${fn1} ${errors.join(' / ')}`);
+}
+
+// ---- GR27 P5 の検査(--gr27p5 [--built]。GR27 指示書 v27.4 の 3.2 節・3.3 節・4 章の S・M。設計書 5 章の終わり・9.5 節)。--built なら、
+// src/app/main.js の代わりにビルドした HTML のスクリプトで(GR25 の形)
+//   S: 範囲の欄の候補の文字が、修飾名が 60 字以下なら今の文字(label)と同じで、60 字を超えるなら前を「…::」で省いた文字(規則はこの検査の中で
+//      別に書いたもの sRule)。値(value)は候補の id のまま。範囲の欄の title は、選んでいる候補の文字の全部(label)だけで、選び直すと入れ直す。
+//      option には title を付けない。入力は 2 つの例・試しのフォルダ・部品の入れ子 300 段(C4_part_D300 と同じ形)・パッケージの入れ子 2000 段
+//      (C4_pkg_D2000 と同じ形)
+//   M: 行が 6,000 を超える木(C3_1MB に当たるもの。この検査の中で作る)で、並べる行の数が、見えている範囲で決まる値(画面 3 枚分。偽の DOM の
+//      本体の高さ 600px、行の高さ 20px なら 90 行)以下。スクロールの位置ごとに並ぶ行が、全部を並べたときの同じ位置の行と同じ(文字・印・型・
+//      種類・data-id・字下げ・開閉の印・マウスを載せたときの文・選択の印)。上と下の空きの高さが、並べていない行の数 × 行の高さ。
+//      スクロールした位置での開閉・選択・移動、選んだ項目が並べる範囲の外に出ても選択と参照箇所の欄を保つこと、解析し直した後の開閉と選択、
+//      本体の高さが変わったときの入れ直し、すべて折りたたむ
+// node tests/view/app_main.mjs --gr27p5 --dump <ファイル> [--mfile <.sysml>] は、検査の代わりに、モデルツリーの全部の行と範囲の欄の中身
+//   (と「view を書き足す」の書いた文字)を JSON に書き出す(直す前と後のコードで同じ形に書き、tools/perf/gr27_p5cmp.mjs で比べる)。
+//   直す前のコード(行をすべて並べる)でも動くよう、全部の行は、本体の高さを大きくして並べ直してから読む
+const GR27P5 = process.argv.includes('--gr27p5'), GR27P5_BUILT = GR27P5 && process.argv.includes('--built');
+const p5arg = (k) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : null; };
+// 行が 6,000 を超える木: パッケージ k 個(根の要素なので開いて始まる)の中に、10 個ずつ定義と使用(型と多重度を持つものを含む)
+const p5Big = (k) => {
+  const L = [];
+  for (let i = 0; i < k; i++) {
+    const s = String(i).padStart(4, '0');
+    L.push(`package P${s} {`, `    part def A${s} { part x : B${s} [1..*]; port p; }`, `    part def B${s};`, `    part a${s} : A${s} [2];`, `    part b${s} : B${s};`,
+      `    port def Q${s};`, `    attribute def V${s};`, `    action def Act${s} { action s1; }`, `    state def St${s};`, `    item def It${s};`, `    attribute v${s} : V${s};`, '}');
+  }
+  return L.join('\n') + '\n';
+};
+const p5PkgNest = (D) => { const L = []; for (let i = 0; i < D; i++) L.push(`package n${i} {`); L.push('part def X;'); for (let i = 0; i < D; i++) L.push('}'); return L.join('\n') + '\n'; };
+const p5PartNest = (D) => { const L = []; for (let i = 0; i + 1 < D; i++) L.push(`part n${i} {`); L.push(`part n${D - 1};`); for (let i = 0; i + 1 < D; i++) L.push('}'); return L.join('\n') + '\n'; };
+// 範囲の欄の文字の規則(設計書 5 章の終わり。画面の src/app/modeltree.js の candidateTexts とは別に書いたもの)。label は「種類の語 修飾名」と、
+// フォルダのときの後ろの「(相対パス …)」。.sysml を含む半角のかっこ。修飾名の区切りは、label の中の「::」で切る(この検査の入力の名前は「::」を含まない)
+const P5_MAX = 60;
+const cps = (s) => [...s].length;
+function sRule(label) {
+  const m = /^(part def |part |package |view )(.*?)((?:\([^()]*\.sysml(?: \d+)?\))?)$/u.exec(label);
+  if (!m) return label;
+  const [, lp, P, ls] = m;
+  if (cps(P) <= P5_MAX) return label;
+  const seg = P.split('::');
+  const keep = [seg.pop()];
+  while (seg.length && cps([seg.at(-1), ...keep].join('::')) <= P5_MAX) keep.unshift(seg.pop());
+  return lp + (seg.length ? `…::${keep.join('::')}` : keep.join('::')) + ls;
+}
+const MB = () => $('modelBody');
+const MH = 20; // 偽の DOM では行の高さを測れない(getBoundingClientRect が 0)ので、画面は 20px として計算する(src/app/main.js の MROW_H0)
+// 並べている行と、上の空きの高さから求めた最初の行の位置
+function p5Win() {
+  const ch = MB().children;
+  const pads = ch.filter((c) => c._cls.has('mpad'));
+  const top = ch[0]?._cls.has('mpad') ? parseFloat(ch[0].style.height) : 0;
+  const bottom = pads.length === 2 ? parseFloat(pads[1].style.height) : 0;
+  return { from: Math.round(top / MH), top, bottom, pads: pads.length, rows: mrows() };
+}
+const p5Key = (r) => JSON.stringify([r.id, r.depth, r.name, r.du, r.duCls, r.kind, r.types, r.mult, r.twisty, r.title, r.cls]);
+const p5Resize = () => { for (const h of winLs.resize ?? []) h({ type: 'resize' }); };
+// 全部の行: 本体の高さを大きくして並べ直し、読んだら元の高さに戻して並べ直す(直す前のコードは、いつも全部を並べる)
+function p5Full() {
+  const b = MB(), h = b.clientHeight, st = b.scrollTop;
+  b.clientHeight = 1e9; b.scrollTop = 0; p5Resize();
+  const all = mrows();
+  b.clientHeight = h; b.scrollTop = st; p5Resize();
+  return all;
+}
+const p5Scroll = (y) => { MB().scrollTop = y; MB().dispatchEvent({ type: 'scroll' }); };
+const nextResult = (n0, ms = 600000) => waitFor(() => (results.length > n0 ? results.at(-1) : null), ms);
+async function p5View(v) { if ($('viewKind').value === v) return results.at(-1); const n0 = results.length; $('viewKind').value = v; $('viewKind').dispatchEvent({ type: 'change' }); return nextResult(n0); }
+const P5_VIEWS = ['general', 'interconnection', 'action-flow', 'state-transition', 'sequence', 'grid'];
+const scopeNow = () => ({ options: $('scope').options.map((o) => ({ value: o.value, text: o.textContent, title: o.title ?? '' })), value: $('scope').value, title: $('scope').title ?? '' });
+async function p5Open(name, text) { const n0 = results.length; const r = await openBy('open', name, text); return r ?? (await waitFor(() => results.slice(n0).find((x) => x.text === text), 600000)); }
+
+async function gr27p5Dump(file) {
+  const out = { rows: {}, scope: {}, append: {} };
+  const rowCases = [['大きい木', p5Big(560)], ...(p5arg('--mfile') ? [['C3_1MB', fs.readFileSync(p5arg('--mfile'), 'utf8')]] : [])];
+  for (const [name, text] of rowCases) {
+    await p5Open(`${name}.sysml`, text);
+    const a = p5Full();
+    // 閉じた項目のうち、子のある最初の 3 つを開く(並べた行の先頭の近く)
+    for (let i = 0; i < 3; i++) { const r = mrows().find((x) => x.twisty === '▸'); if (r) mclick(r, 'tw'); }
+    out.rows[name] = { open: a.map(p5Key), opened3: p5Full().map(p5Key) };
+  }
+  // GR26 T の大きなモデル: 始め・根を閉じた後・開き直した後・定義をすべて開いた後・すべて折りたたんだ後の全部の行
+  {
+    await p5Open('g26big.sysml', g26Big());
+    const st = { start: p5Full().map(p5Key) };
+    g26Click('Big'); st.closed = p5Full().map(p5Key);
+    g26Click('Big'); st.reopened = p5Full().map(p5Key);
+    for (let i = 0; i < G26BIG_N; i++) g26Click(`D${i}`);
+    st.allOpen = p5Full().map(p5Key);
+    $('btnModelCollapse').click(); st.collapsed = p5Full().map(p5Key);
+    out.rows['GR26 T 大きなモデル'] = st;
+  }
+  const sCases = [['例', null, '機能紹介'], ['入門用の例', null, '入門'], ['部品の入れ子 300 段', p5PartNest(300)], ['パッケージの入れ子 2000 段', p5PkgNest(2000)]];
+  for (const [name, text, word] of sCases) {
+    if (word) await pickSample(word); else await p5Open(`${name}.sysml`, text);
+    out.scope[name] = {};
+    for (const v of P5_VIEWS) { await p5View(v); out.scope[name][v] = scopeNow(); }
+  }
+  // 「view を書き足す」: 部品の入れ子 300 段の相互接続ビューで、修飾名が 60 字を超える候補(n0::…::n150)を選んで押した後のテキスト
+  {
+    const t = p5PartNest(300);
+    await p5Open('append.sysml', t);
+    await p5View('interconnection');
+    const want = $('scope').options.find((o) => o.value === `part:${Array.from({ length: 151 }, (_, i) => `n${i}`).join('::')}`);
+    let n0 = results.length;
+    $('scope').value = want?.value ?? ''; $('scope').dispatchEvent({ type: 'change' });
+    await nextResult(n0);
+    n0 = results.length;
+    const before = $('src').value;
+    if (!$('btnAppendView').disabled) $('btnAppendView').click();
+    await waitFor(() => $('src').value !== before, 60000);
+    await waitFor(() => results.slice(n0).find((x) => x.text === $('src').value), 60000);
+    out.append['部品の入れ子 300 段 n150'] = { found: !!want, text: $('src').value === before ? null : $('src').value.slice(-400) };
+  }
+  // 試しのフォルダ(最後に。行と範囲の欄)
+  {
+    await loadBy('picker', G26_NAME, G26_FILES);
+    out.rows['試しのフォルダ'] = { open: p5Full().map(p5Key) };
+    out.scope['試しのフォルダ'] = {};
+    for (const v of P5_VIEWS) { await p5View(v); out.scope['試しのフォルダ'][v] = scopeNow(); }
+  }
+  fs.writeFileSync(file, JSON.stringify(out));
+  check(errors.length === 0, `GR27 P5 dump: 書き出した(${file})`, errors.join(' / '));
+}
+
+async function gr27p5() {
+  if (p5arg('--dump')) { await gr27p5Dump(p5arg('--dump')); return; }
+  const V = await import('../../src/view/index.js');
+  // ---- S
+  const sRows = [];
+  const sCheck = async (name, text, word, views) => {
+    if (word) await pickSample(word); else await p5Open(`${name}.sysml`, text);
+    let bad = null, n = 0, long = 0, sum = 0, sumFull = 0;
+    for (const v of views) {
+      const r = await p5View(v);
+      const p = word || text ? V.prepareView($('src').value) : null;
+      const KEY = { general: 'generalCandidates', interconnection: 'candidates', 'action-flow': 'actionCandidates', 'state-transition': 'stateCandidates', sequence: 'sequenceCandidates', grid: 'tableCandidates' };
+      const want = p[KEY[v]];
+      const s = scopeNow();
+      if (!want.length) continue;
+      if (s.options.length !== want.length) { bad ??= `${v}: 候補の数 ${s.options.length} / ${want.length}`; continue; }
+      want.forEach((c, i) => {
+        const o = s.options[i];
+        n++; sum += o.text.length; sumFull += c.label.length;
+        const P = c.label.replace(/^(part def |part |package |view )/, '');
+        if (cps(P) > P5_MAX) long++;
+        if (o.value !== c.id) bad ??= `${v} ${i}: 値 ${o.value.slice(0, 80)} / ${c.id.slice(0, 80)}`;
+        if (o.text !== sRule(c.label)) bad ??= `${v} ${i}: 文字 ${o.text.slice(0, 80)} / ${sRule(c.label).slice(0, 80)}`;
+        if (cps(P) <= P5_MAX && o.text !== c.label) bad ??= `${v} ${i}: 60 字以下の文字が今と違う ${o.text.slice(0, 80)}`;
+        if (o.title) bad ??= `${v} ${i}: option に title がある`;
+      });
+      const sel = want.find((c) => c.id === s.value);
+      if (s.title !== (sel ? sel.label : '')) bad ??= `${v}: 範囲の欄の title ${s.title.slice(0, 80)} / ${(sel?.label ?? '').slice(0, 80)}`;
+      if (r?.m?.candidate && s.value !== r.m.candidate.id) bad ??= `${v}: 選んでいる値 ${s.value.slice(0, 60)} / ${r.m.candidate.id.slice(0, 60)}`;
+    }
+    sRows.push(`${name}: 候補 ${n}、60 字を超える ${long}、option の文字の合計 ${sum}(省く前 ${sumFull})`);
+    check(!bad && n > 0 && errors.length === 0, `GR27 S: ${name}の範囲の欄の候補の文字(60 字以下は今と同じ・60 字を超えるものは前を「…::」で省く)・値・title(${views.length} つのビュー、候補 ${n}、60 字を超える ${long})`, bad ?? sRows.at(-1));
+    return { n, long, sum, sumFull };
+  };
+  await sCheck('例', null, '機能紹介', P5_VIEWS);
+  await sCheck('入門用の例', null, '入門', P5_VIEWS);
+  const s300 = await sCheck('部品の入れ子 300 段', p5PartNest(300), null, ['interconnection', 'general']);
+  const s2000 = await sCheck('パッケージの入れ子 2000 段', p5PkgNest(2000), null, ['general']);
+  check(s300.long > 200 && s2000.long > 1900 && s2000.sum < 200000 && s2000.sumFull > 10000000, 'GR27 S: 入れ子の深い入力で、60 字を超える候補を省き、option の文字の合計が減る(パッケージの入れ子 2000 段で 20 万字未満)', sRows.join(' / '));
+  // 選び直すと title を入れ直す(パッケージの入れ子 2000 段の一般ビュー。省いた候補と省かない候補)
+  {
+    const titles = [];
+    for (const k of [1999, 3, 40]) {
+      const o = $('scope').options[k];
+      const n0 = results.length;
+      $('scope').value = o.value; $('scope').dispatchEvent({ type: 'change' });
+      const after = $('scope').title;
+      await nextResult(n0);
+      titles.push([o.value.replace(/^package:/, ''), after, $('scope').title, o.textContent]);
+    }
+    const ok = titles.every(([q, a, b, t]) => a === `package ${q}` && b === a) && titles[0][3].startsWith('package …::') && titles[1][3] === `package ${titles[1][0]}`;
+    check(ok && errors.length === 0, 'GR27 S: 範囲を選び直すと、範囲の欄の title を選んだ候補の文字の全部に入れ直す(省いた候補と省かない候補)', titles.map(([q, a, , t]) => `${t.slice(0, 40)} → ${a.length} 字`).join(' / '));
+  }
+  // 処理中の表示(GR18 B6 の clearNoResult。S で範囲の欄の title を空にする処理を足した): 候補のないテキストの結果(図を描けていない)の後に
+  // 解析を頼むと、その直後(結果を受け取る前)に、範囲の欄が「(処理中)」だけで title が空、図の文と診断が消えている
+  {
+    await typeText('// 注だけ\n');
+    const noCand = scopeNow().options.map((o) => o.text).join('|') + ' / ' + ($('canvas').querySelector('.empty')?.textContent ?? '').slice(0, 20);
+    $('scope').title = '前の title'; $('msg').textContent = '前の診断';
+    let mid = null;
+    runHook = () => { const s = scopeNow(); mid = { opts: s.options.map((o) => `${o.value}=${o.text}`), title: s.title, msg: $('msg').textContent, empty: $('canvas').querySelectorAll('.empty').length }; };
+    await typeText('// 注だけ\n// もう 1 行\n');
+    runHook = null;
+    const ok = !!mid && JSON.stringify(mid.opts) === JSON.stringify(['=(処理中)']) && mid.title === '' && mid.msg === '' && mid.empty === 0;
+    check(ok && errors.length === 0, 'GR27 S: 図を描けていない間に解析を頼むと、結果を受け取る前に、範囲の欄を「(処理中)」にして title を空にし、図の文と診断を消す(GR18 B6 と同じ動き)', `${noCand} → ${JSON.stringify(mid)}`);
+  }
+  // フォルダ(試しのフォルダ)は最後に M の後で
+  // ---- M
+  const big = p5Big(560);
+  await p5Open('big.sysml', big);
+  const full = p5Full();
+  const n = full.length;
+  const per = Math.ceil(MB().clientHeight / MH), limit = 3 * per;
+  const posCheck = (label, all) => {
+    const bad = [], counts = [];
+    let maxRows = 0;
+    const rowsN = all.length;
+    for (const y of [0, 5 * MH, 1000.5 * MH, 3000 * MH, (rowsN - 10) * MH, 1e7]) {
+      p5Scroll(y);
+      const w = p5Win();
+      maxRows = Math.max(maxRows, w.rows.length);
+      counts.push(`${Math.floor(y / MH) >= 1e5 ? '末尾の先' : `${Math.floor(y / MH)} 行目`} ${w.from}〜${w.from + w.rows.length - 1} の ${w.rows.length} 行`);
+      const vis = Math.min(Math.floor(y / MH), Math.max(0, rowsN - per));
+      if (w.rows.length > limit) bad.push(`${y}: ${w.rows.length} 行`);
+      if (!(w.from <= vis && vis + Math.min(per, rowsN) <= w.from + w.rows.length)) bad.push(`${y}: 見える範囲 ${vis} が並べた ${w.from}〜${w.from + w.rows.length} の外`);
+      if (w.pads !== 2 || w.top !== w.from * MH || w.bottom !== (rowsN - w.from - w.rows.length) * MH) bad.push(`${y}: 空き ${w.top}・${w.bottom}`);
+      w.rows.forEach((r, k) => { if (p5Key(r) !== p5Key(all[w.from + k])) bad.push(`${y}: ${w.from + k} 行目 ${p5Key(r).slice(0, 80)} / ${p5Key(all[w.from + k] ?? {}).slice(0, 80)}`); });
+    }
+    return { bad, maxRows, counts };
+  };
+  const pc = posCheck('開いたとき', full);
+  check(n > 6000 && pc.bad.length === 0 && errors.length === 0, `GR27 M: 行が ${n} の木で、スクロールの位置ごと(6 か所)に並ぶ行が ${limit} 行以下(最大 ${pc.maxRows} 行)で、全部を並べたときの同じ位置の行と同じ(文字・印・型・種類・data-id・マウスを載せたときの文)。上と下の空きの高さが並べていない行の数 × ${MH}px。スクロールの位置ごと: ${pc.counts.join('、')}`, pc.bad.slice(0, 3).join(' / '));
+  // スクロールした位置での開閉: 3000 行目のあたりの閉じた項目を開き、閉じる
+  p5Scroll(3000 * MH);
+  const closed = mrows().find((r, k) => k > per && r.twisty === '▸');
+  mclick(closed, 'tw');
+  const opened = p5Full();
+  const pc2 = posCheck('開いた後', opened);
+  const isOpen = opened.find((r) => r.id === closed?.id)?.twisty === '▾';
+  p5Scroll(3000 * MH);
+  mclick(mrows().find((r) => r.id === closed?.id), 'tw');
+  const back = p5Full();
+  check(!!closed && isOpen && opened.length > n && pc2.bad.length === 0 && back.length === n && back.every((r, k) => p5Key(r) === p5Key(full[k])) && errors.length === 0,
+    'GR27 M: スクロールした位置で項目を開くと、並ぶ行が開いた木の同じ位置の行と同じになり、閉じると元の行に戻る', `${closed?.name} ${isOpen} ${opened.length} ${pc2.bad.slice(0, 2).join(' / ')}`);
+  // 選択と移動: 5000 行目のあたりの項目を押す → 選び、参照箇所の欄に出し、テキスト欄のその名前の字句を選ぶ。範囲の外にスクロールしても選択と
+  // 参照箇所の欄を保ち、戻ると選択の印がある
+  p5Scroll(5000 * MH);
+  const target = mrows().find((r) => /^B\d{4}$/.test(r.name));
+  mclick(target);
+  const src = $('src');
+  const picked = src.value.slice(src.selectionStart, src.selectionEnd);
+  const head1 = $('refHead').textContent, refs1 = $('refBody').textContent;
+  const sel1 = mrows().filter((r) => r.cls.includes('sel')).map((r) => r.id);
+  p5Scroll(0);
+  const away = !mrows().some((r) => r.id === target?.id) && $('refHead').textContent === head1 && $('refBody').textContent === refs1;
+  p5Scroll(5000 * MH);
+  const sel2 = mrows().filter((r) => r.cls.includes('sel')).map((r) => r.id);
+  check(!!target && picked === target.name && JSON.stringify(sel1) === JSON.stringify([target.id]) && JSON.stringify(sel2) === JSON.stringify(sel1) && away && /参照箇所: B\d{4}\(\d+ 件\)/.test(head1) && errors.length === 0,
+    'GR27 M: スクロールした位置で項目を押すと、選んで参照箇所を出し、テキスト欄のその名前を選ぶ。並べる範囲の外にスクロールしても、選択と参照箇所の欄を保つ', `${target?.name} 選んだ字句「${picked}」 ${head1} ${away} ${sel1} ${sel2}`);
+  // 型を押して移る(スクロールした位置の項目)
+  {
+    p5Scroll(5000 * MH);
+    const t = mrows().find((r) => /^a\d{4}$/.test(r.name));
+    mclick(t, 'mty');
+    const got = src.value.slice(src.selectionStart, src.selectionEnd);
+    check(!!t && got === t.types.replace(/^: /, '').replace(/ \[.*$/, '').trim() && errors.length === 0, 'GR27 M: スクロールした位置の項目の型を押すと、型の定義へ移る', `${t?.name} ${t?.types} → ${got}`);
+  }
+  // 解析し直した後も、開閉と選択を保つ(スクロールの位置で項目を開いてから、テキストの末尾に注を足す)
+  {
+    p5Scroll(4000 * MH);
+    const c = mrows().find((r, k) => k > per && r.twisty === '▸');
+    mclick(c, 'tw');
+    const before = p5Full();
+    const r = await typeText(big + '// 足した注\n');
+    await waitFor(() => !MB()._cls.has('stale'), 60000);
+    const after = p5Full();
+    p5Scroll(5000 * MH);
+    const sel3 = mrows().filter((x) => x.cls.includes('sel')).map((x) => x.title.split('\n')[0]);
+    check(!!r && !!c && after.length === before.length && after.every((x, k) => p5Key(x) === p5Key(before[k])) && sel3.length === 1 && sel3[0] === target?.title.split('\n')[0] && $('refHead').textContent === head1 && errors.length === 0,
+      'GR27 M: 解析し直した後も、並べる範囲の外の項目を含めて開閉と選択(参照箇所の欄)を保つ', `${after.length}/${before.length} ${sel3}`);
+  }
+  // 本体の高さが変わったとき(区画の高さの付け直しと窓の大きさの変化): 並べる行を入れ直し、見えている範囲を含む
+  {
+    p5Scroll(2000 * MH);
+    MB().clientHeight = 1500;
+    p5Resize();
+    const w = p5Win();
+    const vis = 2000, per2 = Math.ceil(1500 / MH);
+    const ok = w.rows.length > limit && w.rows.length <= 3 * per2 && w.from <= vis && vis + per2 <= w.from + w.rows.length;
+    MB().clientHeight = 600;
+    p5Resize();
+    const w2 = p5Win();
+    check(ok && w2.rows.length <= limit && errors.length === 0, 'GR27 M: 本体の高さが変わると、並べる行を見えている範囲に合わせて入れ直す(高さ 1500px で 225 行以下、600px に戻すと 90 行以下)', `${w.from} ${w.rows.length} / ${w2.rows.length}`);
+  }
+  // すべて折りたたむ(スクロールの位置が木の高さより下でも、行を並べる)
+  {
+    p5Scroll(6000 * MH);
+    $('btnModelCollapse').click();
+    const w = p5Win();
+    const all = p5Full();
+    // スクロールの位置が木の高さより下なので、最後の画面(と前の画面 1 枚分)を並べる
+    const lastScreen = Math.max(0, all.length - per);
+    check(all.length === 560 && w.rows.length > 0 && w.rows.length <= limit && w.from <= lastScreen && w.from + w.rows.length === all.length && w.rows.every((r, k) => r.depth === 0 && r.twisty === '▸' && p5Key(r) === p5Key(all[w.from + k])) && errors.length === 0,
+      'GR27 M: スクロールした後に「すべて折りたたむ」と、根の項目だけになり、木の末尾の画面の行を並べる', `${w.from} ${w.rows.length} ${all.length}`);
+  }
+  // フォルダ: 試しのフォルダの範囲の欄(6 つのビュー)と、モデルツリーの行(全部を並べたときと同じ)
+  {
+    await loadBy('picker', G26_NAME, G26_FILES);
+    let bad = null, nn = 0;
+    for (const v of P5_VIEWS) {
+      const r = await p5View(v);
+      const want = G27MT.unpackCandidates(r.m.candidates, r.m.paths ?? null);
+      const s = $('scope');
+      if (want.length && s.options.length !== want.length) { bad ??= `${v}: 候補の数 ${s.options.length} / ${want.length}`; continue; }
+      want.forEach((c, i) => { nn++; const o = s.options[i]; if (o.value !== c.id || o.textContent !== c.label || o.textContent !== sRule(c.label) || o.title) bad ??= `${v} ${i}: ${o.textContent} / ${c.label}`; });
+      const sel = want.find((c) => c.id === s.value);
+      if (s.title !== (sel ? sel.label : '')) bad ??= `${v}: title ${s.title} / ${sel?.label}`;
+    }
+    const all = p5Full(), w = p5Win();
+    check(!bad && nn > 0 && w.rows.length === all.length && w.rows.every((r, k) => p5Key(r) === p5Key(all[k])) && errors.length === 0, `GR27 S・M: 試しのフォルダで、範囲の欄の候補の文字が今と同じ(どれも 60 字以下)で title が選んだ候補の文字。モデルツリーの行(${all.length} 行)が全部を並べたときと同じ`, bad ?? '');
+  }
+}
+
 try {
-  if (GR25K || GR26P5_BUILT || GR26P6_BUILT) await loadBuilt(); else await import('../../src/app/main.js');
+  if (GR25K || GR26P5_BUILT || GR26P6_BUILT || GR27_BUILT || GR27P5_BUILT) await loadBuilt(); else await import('../../src/app/main.js');
   // W1: 起動の解析(空のテキスト)
   const r0 = await resultFor('');
   check(!!r0 && errors.length === 0 && /未検査 0 件/.test($('msg').textContent), 'GR18 W1: 起動の解析の応答を、例外なしに画面が処理する(診断欄が出る)', errors.join(' / ') || $('msg').textContent);
   if (GR25K) await gr25k();
+  else if (GR27) await gr27();
+  else if (GR27P5) await gr27p5();
   else if (GR26LT) await gr26lt();
   else if (GR26LS) gr26ls();
   else if (GR26R) await gr26r();

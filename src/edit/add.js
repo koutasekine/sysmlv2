@@ -33,6 +33,7 @@
 //   選んだ要素に解決する。満たさなければ書き足す前に戻す。意味エラーのうち S2 が増えたときは、区別できない名前として拒否する
 
 import { EDIT18, s2Clash, analyze, writtenName, declaredWriting, s2Details, modelDump, diffDumps, positionsOf, tokensOf, folderScope } from './index.js';
+import { walkTree } from '../parser/tree.js';
 
 const DIRECTIONS = new Set(['', 'in', 'out', 'inout']);
 const reject = (code, reason, details = []) => ({ ok: false, reverted: false, code, reason, details });
@@ -83,13 +84,12 @@ export function typeCandidates({ analysis, owner, kind, text = null }) {
   if (!analysis?.ok || !user(owner)) return [];
   const { tree, model } = analysis;
   const out = [];
-  (function walk(e) {
+  walkTree(tree, (e) => {
     if (user(e) && model.conforms(e.kind, kind) && (kind !== 'PartDefinition' || !NOT_PART.some(k => model.conforms(e.kind, k)))) {
       const w = typeWriting(model, tree, owner, e, text);
       if (w) out.push({ element: e, qname: qnameOf(model, tree, e), ...w });
     }
-    e.owned.forEach(walk); e.related.forEach(walk);
-  })(tree);
+  }); // 前順の明示のスタック(GR27 の E。設計書 2.6 節)
   return out;
 }
 const qnameOf = (model, tree, e) => { const s = []; for (let x = e; x && x !== tree; x = model.parentNamespaceOf(x)) s.unshift(nameOf(model, x) ?? ''); return s.join('::'); };

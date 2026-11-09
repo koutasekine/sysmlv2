@@ -31,7 +31,7 @@
 //   - 参照するだけの require・assume・frame・satisfy・assert・verify・include と、端が 2 つの割り当て、view の箱の expose は、
 //     両端が図にあれば線(require-edge など)にし、今の箱・区画の行を描かない。端が図になければ今のまま(Q2・Q4・Q5)
 
-import { joinTokens, commentLines } from './common.js';
+import { joinTokens, commentLines, runNested } from './common.js';
 import { pathOf } from './scope.js';
 import { compartmentOf, headerOf, noteContent } from './diagram.js';
 import { walkTree } from '../parser/tree.js';
@@ -399,8 +399,10 @@ export function buildGeneralDiagram(ctx, candidate, scope, fx = {}) {
     if (f) conv.push({ ...f, el, box });
   }
 
-  // 箱の中身: 持つ使用は別の箱にして合成の線で結び、それ以外は文字の区画に出す(裁定 Q4)
-  function fill(box, ns, lifted = false) {
+  // 箱の中身: 持つ使用は別の箱にして合成の線で結び、それ以外は文字の区画に出す(裁定 Q4)。
+  // 入れ子の箱の中身は明示のスタックで回す(GR27 の R。設計書 2.6 節。箱・線を作る順は前の再帰と同じ)
+  function fill(box, ns) { runNested(fillGen(box, ns, false)); }
+  function* fillGen(box, ns, lifted) {
     for (const { rel, el } of ctx.members(ns)) {
       if (rel.kind === 'Membership') continue; // 別名
       if (el.start === el.end) continue; // 原文に書かれていない要素
@@ -408,7 +410,7 @@ export function buildGeneralDiagram(ctx, candidate, scope, fx = {}) {
       if (!drawn(el)) {
         // view で公開していない要素の、公開した子孫は、この箱の中身として扱う(設計書 5 章)
         box.ellipsis = true;
-        if (viewMode && ctx.model.conforms(el.kind, 'Namespace')) fill(box, el, true);
+        if (viewMode && ctx.model.conforms(el.kind, 'Namespace')) yield fillGen(box, el, true);
         continue;
       }
       if (ctx.is(el, 'MetadataUsage') && ctx.text[el.start - 1] === '#') continue;
@@ -423,7 +425,7 @@ export function buildGeneralDiagram(ctx, candidate, scope, fx = {}) {
       const f = edgeForm(rel, el, ns);
       if (sym) {
         const child = makeBox(el, sym, rel);
-        fill(child, el);
+        yield fillGen(child, el, false);
         const portion = sym === 'timeslice' || sym === 'snapshot';
         // 参照の使用(ref)と、いつも参照である事象(EventOccurrenceUsage)と端(end)は noncomposite
         const symbol = portion ? 'portion-relationship' : el.attrs.isReference || el.attrs.isEnd || ctx.is(el, 'EventOccurrenceUsage') ? 'noncomposite-feature-membership' : 'composite-feature-membership';
@@ -483,10 +485,14 @@ export function buildGeneralDiagram(ctx, candidate, scope, fx = {}) {
     const holder = new Map(tops.map((el) => [el, pkgOf(el)]));
     for (const [el, x] of [...holder]) if (x && !holder.has(x)) holder.set(el, null); // 入れ物が最上位に置く要素でなければ使わない
     const holders = new Set([...holder.values()].filter(Boolean));
-    const holderBox = (x, seen = new Set()) => {
+    // 入れ物の箱の鎖(入れ子のパッケージ)は明示のスタックで回す(GR27 の R。箱を作る順は前の再帰と同じ。seen は鎖の上で今の要素より
+    // 前のもの。前の再帰の「今までの seen に今の要素を足して渡す」と同じものを、1 つの集合に足していく形で持つ)
+    const holderBox = (x) => runNested(holderBoxGen(x, new Set()));
+    const holderBoxGen = function* (x, seen) {
       if (elBox.has(x)) return elBox.get(x);
       const up = holder.get(x);
-      const outer = up && !seen.has(up) ? holderBox(up, new Set([...seen, x])) : null;
+      let outer = null;
+      if (up && !seen.has(up)) { seen.add(x); outer = yield holderBoxGen(up, seen); }
       region = outer;
       const b = reg({ id: idOf(x), type: 'box', symbol: 'package-with-name-in-tab', el: x, src: srcOf(x), parent: null, region: [], ports: [], compartments: [], header: packageHeader(x), ellipsis: false, omittedGeneralView: false, flowLayout: true });
       put(b);

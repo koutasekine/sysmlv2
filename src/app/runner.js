@@ -125,3 +125,23 @@ export function withEol(text, eol) {
 export function folderKey(files) {
   return `\u0000folder\u0000${files.map((f) => `${f.path.length}:${f.path}${f.text.length}:`).join('')}\u0000${files.map((f) => f.text).join('\u0001')}`;
 }
+
+// 大きいファイルの知らせ(GR27 の L。設計書 5 章): 開いたテキスト(フォルダのときは .sysml の合計)が BIG_TEXT バイトを超えるときに出す。
+// utf8Bytes(s) は文字列 s を UTF-8 で書いたときのバイト数(対になっていないサロゲートは U+FFFD の 3 バイトとして数える。TextEncoder と同じ)
+export const BIG_TEXT = 1000000;
+export function utf8Bytes(s) {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) { n += 4; i++; }
+    else n += 3;
+  }
+  return n;
+}
+// 知らせの文(bytes はバイト数、folder はフォルダか)
+export function bigTextNote(bytes, folder) {
+  const b = bytes.toLocaleString('ja-JP');
+  return folder ? `大きいフォルダ(.sysml の合計 ${b} バイト)なので、解析に時間がかかります` : `大きいファイル(${b} バイト)なので、解析に時間がかかります`;
+}

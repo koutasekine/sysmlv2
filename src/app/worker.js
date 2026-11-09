@@ -42,6 +42,13 @@
 // GR21 の X(設計書 9.4 節の段階 B): 名前の変更と削除は、複数のファイルにまたがっても行う。フォルダのときの rename・delete の応答には、
 // edits(書き換えるファイルごとの 1 か所の置き換え [{ file, path, start, end, text }]。start・end はそのファイルの中の位置)と home
 // (操作の主なファイル: 名前を変える要素・消す要素のファイルの番号)を足す。edit は home のファイルの置き換え(1 つのファイルなら今のまま)
+// GR27 の O(設計書 9.5 節の「作り直し」): result の outline(モデルツリーと参照箇所)は、この Worker でテキスト(フォルダのときは全ファイルの
+// 相対パスとテキスト)を解析し直した結果(Worker を作り直した後の最初の結果を含む)と、run の needOutline が真のとき(画面がこのテキストの
+// モデルツリーを持っていないとき)だけ入れる。入れないときは outline の鍵を置かず、画面は前のモデルツリーを使う。outline と candidates は
+// 受け渡しの形(src/app/modeltree.js の packOutline・unpackCandidates)にする: outline の項目は q・key の代わりに kn を持ち、candidates は
+// 修飾名の表 paths の節を指す形を含む。画面は unpackOutline・unpackCandidates で今と同じ形に戻す
+// GR27 の Q: result の structure も受け渡しの形(src/app/modeltree.js の packStructure)にする: 要素・線・枠の info は、qname の代わりに
+// 修飾名の表 structure.qnames の節の番号 qn を持つ。画面は unpackStructure で今と同じ形に戻す
 
 import { prepareView, renderInterconnection, renderGeneral, renderStateTransition, renderActionFlow, renderSequence, renderTables, tsv } from '../view/index.js';
 import { standardViewOf } from '../view/scope.js';
@@ -56,8 +63,9 @@ import { appendView, appendCheck } from '../edit/view.js';
 import { buildDiagnostics } from './diag.js';
 import { analyzeFiles } from '../model/files.js';
 import { prepareFromAnalysis, folderLabels } from './prepare.js';
-import { folderOf } from '../edit/index.js';
+import { folderOf, findNode } from '../edit/index.js';
 import { buildOutline } from './outline.js';
+import { packOutline, packCandidates, packStructure } from './modeltree.js';
 
 // folder はフォルダのときの解析(analyzeFiles の結果)。1 つのテキストのときは null。outline はモデルツリーと参照箇所(GR26。同じテキストなら作り直さない)
 let last = { text: null, prepared: null, semantic: null, warnings: null, folder: null, outline: undefined };
@@ -73,7 +81,7 @@ const VIEWS = {
 };
 
 // testInternal は検査用の口(GR18 の B2): 解析と名前解決で例外が起きたことにする
-function run({ id, text, files = null, candidateId, view = 'interconnection', opening = false, enabled = ['interconnection'], testInternal = false }) {
+function run({ id, text, files = null, candidateId, view = 'interconnection', opening = false, enabled = ['interconnection'], testInternal = false, needOutline = false }) {
   const progress = (p) => postMessage({ type: 'progress', id, ...p });
   const internal = [];
   let prepared = null, semantic = null, warnings = null, folder = null;
@@ -101,19 +109,22 @@ function run({ id, text, files = null, candidateId, view = 'interconnection', op
   }
   // モデルツリーと参照箇所(GR26 の T・R。設計書 9.5 節)。解析の結果から作る(結果は変えない)。構文エラーで解析できなかったときは、
   // 項目のない木に、構文エラーのあるファイル(1 つのテキストなら '')を付ける
-  if (last.outline === undefined) {
+  // この解析の結果にモデルツリーを入れるか(GR27 の O): 解析し直した(作り直した)ときと、画面が持っていないと知らせたとき
+  const fresh = last.outline === undefined;
+  if (fresh) {
     try {
       last.outline = prepared?.ok ? buildOutline(prepared, folder)
         : prepared ? { items: [], roots: [], refs: {}, errorFiles: folder ? folder.files.filter((f) => !f.ok).map((f) => f.path) : [''], other: 0 } : null;
     } catch (e) { internal.push(`モデルツリーの準備で例外: ${e?.message ?? e}`); last.outline = null; }
   }
-  const outline = last.outline;
+  if (fresh || (needOutline && last.packed === undefined)) last.packed = packOutline(last.outline);
+  const ox = fresh || needOutline ? { outline: last.packed } : {};
   // フォルダのときの、結果に足すもの(GR20 の F)
   const fx = folder ? { folder: { files: folder.files.map((f) => ({ path: f.path, base: f.base, end: f.end, ok: f.ok })) }, blocked: !folder.ok } : {};
   const dtext = folder ? folder.text : text;
   const dfiles = folder ? folder.files : null;
-  if (!prepared) return { id, ok: false, outline, candidates: [], candidate: null, svg: null, structure: null, diagnostics: buildDiagnostics({ text: dtext, files: dfiles, internal }) };
-  if (!prepared.ok) return { id, ok: false, ...fx, outline, candidates: [], candidate: null, svg: null, structure: null, diagnostics: buildDiagnostics({ text: dtext, files: dfiles, errors: folder ? [] : prepared.errors }) };
+  if (!prepared) return { id, ok: false, ...ox, candidates: [], candidate: null, svg: null, structure: null, diagnostics: buildDiagnostics({ text: dtext, files: dfiles, internal }) };
+  if (!prepared.ok) return { id, ok: false, ...fx, ...ox, candidates: [], candidate: null, svg: null, structure: null, diagnostics: buildDiagnostics({ text: dtext, files: dfiles, errors: folder ? [] : prepared.errors }) };
   // 開いたときは、テキストの最初の view の型(StateTransitionView・InterconnectionView・ActionFlowView・SequenceView・GeneralView・GridView)でビューを決める。
   // その view を描く範囲にする。
   // 最初の view の型で決まらないとき(view がない・型が標準のビューでない、「新規」)は、一般ビューにする(仕様書の表 34(SysML 2.0 の
@@ -141,7 +152,8 @@ function run({ id, text, files = null, candidateId, view = 'interconnection', op
   try { r = V.render(prepared, candidateId); }
   catch (e) { internal.push(`描画で例外: ${e?.message ?? e}`); }
   // フォルダのときは、表示が同じになる候補に相対パス(同じなら行も)を付ける(GR22 の B1。src/app/prepare.js の folderLabels)
-  const candidates = (folder ? folderLabels(V.cands(prepared), folder.files) : V.cands(prepared)).map((c) => ({ id: c.id, kind: c.kind, label: c.label }));
+  // 候補の id・label の中の修飾名は、修飾名の表の節を指す形にする(GR27 の O)
+  const { candidates, paths } = packCandidates(folder ? folderLabels(V.cands(prepared), folder.files) : V.cands(prepared), prepared.ctx);
   // 範囲の要素の名前(ファイル名「元の名前_ビュー_範囲の名前」に使う)。名前のない要素は候補の表示名、根の名前空間は「根の名前空間」
   const cel = r.candidate ? V.cands(prepared).find((c) => c.id === r.candidate.id) : null;
   const scopeName = cel ? (cel.kind === 'root' ? '根の名前空間' : prepared.ctx.nameOf(cel.el) ?? cel.label) : null;
@@ -150,7 +162,7 @@ function run({ id, text, files = null, candidateId, view = 'interconnection', op
   const append = !EDIT15.V ? null : !cel ? { enabled: false, reason: '描く範囲がない' }
     : folder && !folder.ok ? { enabled: false, reason: 'どれかのファイルに構文エラーがある' }
     : (() => { const x = appendCheck({ analysis: { ok: true, tree: prepared.ctx.tree, model: prepared.ctx.model }, scope: cel.el, view }); return x ? { enabled: false, reason: x.reason } : { enabled: true, reason: null }; })();
-  return { id, ok: true, ...fx, outline, view, candidates, candidate: r.candidate, svg: r.svg, structure: r.structure,
+  return { id, ok: true, ...fx, ...ox, view, candidates, paths, candidate: r.candidate, svg: r.svg, structure: packStructure(r.structure),
     title: r.svg && view !== 'grid' ? figureTitle(r.svg) : null, scopeName, append, rename: EDIT15.E, edit16: { ...EDIT16 },
     // 表: 保存する表(題を入れない SVG)とタブ区切りの文字、題の位置(GR13 指示書 5 章・6 章)
     ...(view === 'grid' ? { tables: (r.tables ?? []).map((t) => ({ ...t, tsv: t.empty ? '' : tsv(t) })), anchors: r.anchors ?? [] } : {}),
@@ -198,15 +210,10 @@ function folderEdit(x) {
   };
   return { text: F.text, opts: { folder: folderOf(F) }, blocked: !F.ok, local, perFile, fileOf: (at) => F.files.findIndex((f) => f.base <= at && at <= f.end) };
 }
+// 原文の範囲と種類が同じ、前順で最初の要素(入れ子の深さに比例して呼び出しを深くしない。明示のスタック。GR27 の E。設計書 2.6 節)
 function elementAt(prepared, src, kind) {
   if (!src) return null;
-  let hit = null;
-  (function walk(e) {
-    if (hit) return;
-    if (e.start === src[0] && e.end === src[1] && e.kind === kind) { hit = e; return; }
-    e.owned.forEach(walk); e.related.forEach(walk);
-  })(prepared.ctx.tree);
-  return hit;
+  return findNode(prepared.ctx.tree, (e) => e.start === src[0] && e.end === src[1] && e.kind === kind);
 }
 function renameInfoMsg({ id, text, src, kind }) {
   if (!EDIT15.E) return { id, ok: false, reason: 'このコマンドは入っていない' };

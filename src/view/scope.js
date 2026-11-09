@@ -8,6 +8,7 @@
 //   view の expose と filter から、描く要素を決める(裁定 Q18・Q19・Q23・Q24)。
 
 import { walkTree } from '../parser/tree.js';
+import { runNested } from './common.js';
 
 export const PART_EXCLUDED = ['ConnectionDefinition', 'ConnectionUsage', 'ViewDefinition', 'ViewUsage', 'RenderingDefinition', 'RenderingUsage'];
 const CONNECTION_KINDS = ['ConnectionUsage', 'BindingConnectorAsUsage', 'FlowUsage'];
@@ -124,13 +125,15 @@ function viewConditions(ctx, view) {
 // import で取り込んだもの・型なら受け継いだものを含む。GR4 P2 の裁定 Q19 と 2 回目の裁定 1)
 // 戻り値 [{ el, via }]。via はそのメンバーを見せている名前空間。再帰は、所有する名前空間をたどる
 // (名前解決の visibleEntries の再帰と同じ)
-function exposedMembersOf(ctx, ns, recursive, seen = new Set()) {
+// 入れ子の名前空間は明示のスタックで回す(GR27 の R。並びは前の再帰と同じ)
+function exposedMembersOf(ctx, ns, recursive) { return runNested(exposedMembersGen(ctx, ns, recursive, new Set())); }
+function* exposedMembersGen(ctx, ns, recursive, seen) {
   const out = [];
   if (!ctx.user(ns) || seen.has(ns)) return out;
   seen.add(ns);
   const isFilter = (el) => { const r = ctx.owningRel(el); return r && ctx.model.conforms(r.kind, 'ElementFilterMembership'); };
   for (const m of ctx.model.visibleMembershipsOf(ns, { includeAll: true }).members) if (ctx.user(m.element) && !isFilter(m.element)) out.push({ el: m.element, via: ns });
-  if (recursive) for (const { el } of ctx.members(ns)) if (ctx.model.conforms(el.kind, 'Namespace')) out.push(...exposedMembersOf(ctx, el, true, seen));
+  if (recursive) for (const { el } of ctx.members(ns)) if (ctx.model.conforms(el.kind, 'Namespace')) { const sub = yield exposedMembersGen(ctx, el, true, seen); for (const x of sub) out.push(x); }
   return out;
 }
 

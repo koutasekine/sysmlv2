@@ -21,7 +21,7 @@
 //
 // 読み方は GR4 P1 の裁定 Q1〜Q17 と、P2 の裁定 Q18〜Q24 による(reports/GR4/)。
 
-import { joinTokens, commentLines } from './common.js';
+import { joinTokens, commentLines, runNested } from './common.js';
 import { isPartLike, pathOf } from './scope.js';
 
 const PORT_HOLDERS = new Set(['part', 'part-ref', 'part-def', 'port-def', 'port-usage']);
@@ -304,7 +304,9 @@ export function buildDiagram(ctx, candidate, scope) {
     if (c) addCompartmentLine(box, c, el, joinTokens(ctx.declTokens(el)));
   }
 
-  function makePort(el, owner, inherited, kind = 'port') {
+  // 入れ子のポートは明示のスタックで回す(GR27 の R。ポートを作る順は前の再帰と同じ)
+  function makePort(el, owner, inherited, kind = 'port') { return runNested(makePortGen(el, owner, inherited, kind)); }
+  function* makePortGen(el, owner, inherited, kind) {
     const id = inherited ? `${owner.id}^${idOf(el)}` : idOf(el);
     const type = ctx.typeText(el);
     const name = ctx.nameOf(el) ?? '';
@@ -314,7 +316,7 @@ export function buildDiagram(ctx, candidate, scope) {
     (owner.type === 'port' ? owner.children : owner.ports).push(o.id);
     // 入れ子のポート(所有するものだけ。裁定 Q21)
     if (kind === 'port') for (const { el: c } of ctx.members(el)) if (ctx.is(c, 'PortUsage') && drawn(c)) {
-      const k = makePort(c, o, inherited);
+      const k = yield makePortGen(c, o, inherited, 'port');
       k.nested = true;
     }
     return o;

@@ -30,7 +30,8 @@
 //   変わらない、モデルの差分が消した要素とその中身と一緒に消したものだけ(消した文の後ろのメンバーの位置は詰めて比べる)であること。
 //   満たさなければ消す前に戻す
 
-import { EDIT18, analyze, modelDump, positionsOf, folderScope, fileOfRange } from './index.js';
+import { EDIT18, analyze, modelDump, positionsOf, folderScope, fileOfRange, eachPosition, findNode } from './index.js';
+import { walkTree } from '../parser/tree.js';
 import { makeContext } from '../view/common.js';
 import { successionEnds, transitionEnds } from '../view/ends.js';
 
@@ -60,10 +61,11 @@ const pre = (x) => (x.path ? `${x.path} ` : '');
 // 構文木の親(関係も要素も)
 function parents(tree) {
   const p = new Map();
-  (function walk(e, up) { p.set(e, up); e.owned.forEach(c => walk(c, e)); e.related.forEach(c => walk(c, e)); })(tree, null);
+  walkTree(tree, (e, up) => { p.set(e, up); }); // 前順の明示のスタック(GR27 の E。設計書 2.6 節)
   return p;
 }
-const subtree = (e, into = new Set()) => { into.add(e); e.owned.forEach(c => subtree(c, into)); e.related.forEach(c => subtree(c, into)); return into; };
+// 要素とその子孫(前順。明示のスタック。GR27 の E)
+const subtree = (e, into = new Set()) => { walkTree(e, (x) => { into.add(x); }); return into; };
 
 // 文として宣言した要素の Membership(なければ null)
 function statementOf(analysis, element, parent) {
@@ -91,7 +93,7 @@ export function isDeclared({ analysis, element, text }) {
 export function declaredElements({ analysis, text }) {
   if (!analysis?.ok) return [];
   const parent = parents(analysis.tree), a = { ...analysis, text }, out = [];
-  (function walk(e) { if (statementOf(a, e, parent)) out.push(e); e.owned.forEach(walk); e.related.forEach(walk); })(analysis.tree);
+  walkTree(analysis.tree, (e) => { if (statementOf(a, e, parent)) out.push(e); }); // 前順の明示のスタック(GR27 の E)
   return out;
 }
 
@@ -128,7 +130,7 @@ export function deletePlan({ analysis, element, text }, opts = {}) {
   for (const r of model.refs) { if (!refsByNode.has(r.node)) refsByNode.set(r.node, []); refsByNode.get(r.node).push(r); }
   const hits = (r, S) => (r.target && (S.has(r.target) || (r.target.virtual && S.has(r.target.of)))) || r.segments.some(s => s.target && (S.has(s.target) || (s.target.virtual && S.has(s.target.of))));
   const all = [];
-  (function walk(e) { all.push(e); e.owned.forEach(walk); e.related.forEach(walk); })(tree);
+  walkTree(tree, (e) => { all.push(e); }); // 前順の明示のスタック(GR27 の E)
   for (const c of all) {
     if (D0.has(c) || c.builtin || c.virtual || !model.conforms(c.kind, 'Connector') || model.conforms(c.kind, 'AllocationUsage')) continue;
     const cm = statementOf(a, c, parent) ?? emptySuccessionStatement(a, c, parent);
@@ -346,10 +348,10 @@ export function deleteElement({ text, analysis, element }, opts = {}) {
   if (EDIT18.E2) {
     const shift = (p) => { let d = 0; for (const e of edits) d += Math.max(0, Math.min(e.end, p) - e.start); return p - d; };
     const s0 = shift(owner0.start), e0 = shift(owner0.end);
-    (function walk(e) { if (ownerA) return; if (e.start === s0 && e.end === e0 && e.kind === owner0.kind) { ownerA = e; return; } e.owned.forEach(walk); e.related.forEach(walk); })(after.tree);
+    ownerA = findNode(after.tree, (e) => e.start === s0 && e.end === e0 && e.kind === owner0.kind); // 前順の最初のもの(明示のスタック。GR27 の E)
   } else {
     const ownerPos = positions.get(owner0);
-    (function walk(e, s) { if (ownerA) return; if (s === ownerPos) { ownerA = e; return; } e.owned.forEach((c, i) => walk(c, `${s}o${i}`)); e.related.forEach((c, i) => walk(c, `${s}r${i}`)); })(after.tree, '/');
+    eachPosition(after.tree, '/', (e, s) => { if (s === ownerPos) { ownerA = e; return true; } return false; }); // 前順の最初のもの(GR27 の E)
   }
   return { ok: true, text: out, edits, plan: plan.items, owner: ownerA && ownerA !== after.tree ? { start: ownerA.start, end: ownerA.end, kind: ownerA.kind } : null };
 }

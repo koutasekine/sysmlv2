@@ -20,7 +20,7 @@
 // 本体を区画の中にアクションフローの図(action-flow-view の枠なしの箱)として描く(設計書 7.4 節、GR7 P1 の裁定 Q9)。
 // 組み立ては src/view/action.js の flowKit を使う
 
-import { joinTokens } from './common.js';
+import { joinTokens, runNested } from './common.js';
 import { pathOf } from './scope.js';
 import { compartmentOf, noteContent } from './diagram.js';
 import { textWidth } from './textwidth.js';
@@ -130,14 +130,17 @@ export function buildStateDiagram(ctx, candidate, scope) {
     return { keyword: `«${pre ? pre + ' ' : ''}${kindWord}»`, name };
   }
 
-  function stateBox(el, symbol, parent, exhibitOuter = false) {
+  // 状態の入れ子(stateBox → fill → place → stateBox …)は、明示のスタックで回す(GR27 の R。設計書 2.6 節。外から呼ぶ入口と、
+  // 入れ子の中から yield で呼ぶジェネレーター(…Gen)に分けた。箱を作る順は前の再帰と同じ)
+  function stateBox(el, symbol, parent, exhibitOuter = false) { return runNested(stateBoxGen(el, symbol, parent, exhibitOuter)); }
+  function* stateBoxGen(el, symbol, parent, exhibitOuter) {
     const h = header(el, symbol === 'state-def' ? 'state def' : 'state');
     if (exhibitOuter) h.before = ['«exhibit-state»'];
     if (el.attrs.isParallel) h.after = ['«parallel»'];
     const nameSym = exhibitOuter ? 'exhibit-state-name-compartment' : symbol === 'state-def' ? 'state-def-name-compartment' : 'state-name-compartment';
     const box = reg({ id: idOf(el), type: 'box', symbol, nameSym, el, src: srcOf(el), parent: parent?.id ?? null, region: [], ports: [], compartments: [], preCompartments: [], header: h, ellipsis: false, omittedGeneralView: false });
     if (parent) parent.region.push(box.id); else top.push(box.id);
-    fill(box, el);
+    yield fillGen(box, el);
     return box;
   }
 
@@ -206,23 +209,24 @@ export function buildStateDiagram(ctx, candidate, scope) {
     if (!lineOf.has(el)) lineOf.set(el, { box: null, line: comp.lines[comp.lines.length - 1] });
   }
 
-  function fill(box, ns) {
+  function* fillGen(box, ns) {
     for (const { rel, el } of ctx.members(ns)) {
       if (rel.kind === 'Membership') continue;
       if (el.start === el.end) continue;
       if (conf(ctx, rel, 'ElementFilterMembership')) { addLine(box.compartments, compartmentOf(ctx, rel, el, ns), el, joinTokens(ctx.declTokens(rel)).replace(/^filter\s*/, '')); continue; }
       if (!drawn(el)) {
         box.ellipsis = true;
-        if (viewMode && conf(ctx, el, 'Namespace')) fill(box, el);
+        if (viewMode && conf(ctx, el, 'Namespace')) yield fillGen(box, el);
         continue;
       }
-      place(box, rel, el, ns);
+      yield placeGen(box, rel, el, ns);
     }
     if (ctx.is(ns, 'ViewUsage')) for (const exp of ns.owned) if (conf(ctx, exp, 'Expose')) addLine(box.compartments, { symbol: 'exposes-compartment', title: 'exposes' }, exp, joinTokens(ctx.declTokens(exp)).replace(/^expose\s*/, ''));
   }
 
   // メンバーを、状態遷移ビューの記号・線・文字の区画に振り分ける。box が null なら最上位(view で公開した要素)
-  function place(box, rel, el, ns) {
+  function place(box, rel, el, ns) { runNested(placeGen(box, rel, el, ns)); }
+  function* placeGen(box, rel, el, ns) {
     const sym = box?.symbol ?? null;
     const holder = !box || sym === 'state' || sym === 'state-ref' || sym === 'state-def';
     if (!ctx.user(el)) return;
@@ -256,7 +260,7 @@ export function buildStateDiagram(ctx, candidate, scope) {
     if (ctx.is(el, 'ExhibitStateUsage')) { if (box) addLine(box.compartments, compartmentOf(ctx, rel, el, ns), el, joinTokens(ctx.declTokens(el))); else diag('info', 'not-drawn', `${pathOf(ctx, el)}(${el.kind})は、状態遷移ビューの節点にしない`, el); return; }
     if (ctx.is(el, 'StateUsage')) {
       if (box && !holder) { addLine(box.compartments, compartmentOf(ctx, rel, el, ns), el, joinTokens(ctx.declTokens(el))); return; }
-      stateBox(el, el.attrs.isReference ? 'state-ref' : 'state', box);
+      yield stateBoxGen(el, el.attrs.isReference ? 'state-ref' : 'state', box, false);
       return;
     }
     if (ctx.is(el, 'Dependency')) { pendingDeps.push({ el, box }); return; }

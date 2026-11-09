@@ -21,13 +21,18 @@ export const hiddenDir = (p, isDir = false) => (isDir ? p.split('/') : p.split('
 export function buildTree(filePaths, dirPaths = []) {
   const root = { name: '', path: '', dirs: [], files: [] };
   const dirs = new Map([['', root]]);
+  // まだない祖先のフォルダを、外側から順に作る(再帰で作るのと同じ順。フォルダの深さに比例して呼び出しを深くしない。GR27 の E)
   const dirOf = (p) => {
     if (dirs.has(p)) return dirs.get(p);
-    const parent = dirOf(parentOf(p));
-    const d = { name: baseOf(p), path: p, dirs: [], files: [] };
-    parent.dirs.push(d);
-    dirs.set(p, d);
-    return d;
+    const chain = [];
+    for (let x = p; !dirs.has(x); x = parentOf(x)) chain.push(x);
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const q = chain[i];
+      const d = { name: baseOf(q), path: q, dirs: [], files: [] };
+      dirs.get(parentOf(q)).dirs.push(d);
+      dirs.set(q, d);
+    }
+    return dirs.get(p);
   };
   for (const d of dirPaths) dirOf(d);
   for (const f of filePaths) dirOf(parentOf(f)).files.push({ name: baseOf(f), path: f });

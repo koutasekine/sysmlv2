@@ -69,6 +69,11 @@
 //      --gr26n で、移動(項目・参照箇所の行・型。別のファイルへ、書き換えと取り消しの履歴、古い解析、名前の変更・追加・削除・ファイルの名前の
 //      変更・再読み込みの後)と、ファイルの移動・名前の変更の失敗の文(H)を確かめる。「書き方」と README の説明、生成 AI 向けプロンプトが
 //      変わらないこと(H)を確かめる
+//   GR27 で加わった検査(GR27 指示書 4 章の O・L): tests/view/app_main.mjs --gr27(と --built)で、ビューの切り替えの結果にモデルツリーが入らず
+//      画面は前の木を出すこと、同じテキストを開き直すと木が入ること、範囲の欄の候補と木の修飾名が今と同じこと、大きいファイルの知らせを確かめる
+//      GR27 の P4(指示書 4 章の Q): 同じく、図の要素・線を選んだときの「修飾名:」が、描画の関数の構造の info.qname と同じこと
+//      GR27 の P5(指示書 4 章の S・M): tests/view/app_main.mjs --gr27p5(と --built)で、範囲の欄の候補の文字(長い修飾名の前を省く)と title、
+//      モデルツリーの行を見えている分だけ並べること
 //   GR18 で加わった検査 14(GR18 指示書 2.6 節の W3): 画面のスクリプトを、runner.js を通した Worker との実際の受け渡しで動かす
 //      (tests/view/app_main.mjs を別のプロセスで動かす)。W1 の受け渡しの形と、W2 の名前の変更の後の選択
 
@@ -98,6 +103,10 @@ const GR26R_ROWS = 18, GR26N_ROWS = 17;
 const GR26P5_ROWS = 18;
 // tests/view/app_main.mjs --gr26p6 の結果の数(GR26 の P6 の B・Y・Q。起動の 1 件を含む。--ro・--built でも同じ)
 const GR26P6_ROWS = 10;
+// tests/view/app_main.mjs --gr27 の結果の数(GR27 の O・L と P4 の Q。起動の 1 件を含む。--built でも同じ)
+const GR27_ROWS = 12;
+// tests/view/app_main.mjs --gr27p5 の結果の数(GR27 P5 の S・M。起動の 1 件を含む。--built でも同じ)
+const GR27P5_ROWS = 16;
 import * as io from '../../src/app/io.js';
 import { readSysml, fileKind, OPEN_ONLY_SYSML } from '../../src/app/io.js';
 import { buildDiagnostics, toPrompt } from '../../src/app/diag.js';
@@ -843,6 +852,7 @@ export async function runAppTests(log = console.log) {
       const r = checkHtmlImports(html);
       check(r.missing.length === 0 && r.modules > 40 && r.names > 200, `GR25 K: ${out.file} の中で、読み込む名前がすべて書き出しにある`, JSON.stringify(r).slice(0, 300));
       const ret = /\/\/ ---- src\/app\/layout\.js\nconst __m\d+ = \(\(\) => \{\n[\s\S]*?\nreturn \{ (.*) \};\n\}\)\(\);/.exec(html)?.[1] ?? '';
+      // GR27 P5 の U(予定の red の 1): T を戻したので、P3 の終わり(cb68ebe)の 8 つの定数と 4 つの関数の 12 個に戻した(P4 では 19 個)
       const want = ['TREE_SPLIT', 'SPLIT', 'BORDER', 'FOLDED', 'TEXT_MIN', 'VIEW_MIN', 'TREE_MIN', 'TREE_INIT', 'initialText', 'widths', 'dragTree', 'dragMiddle'];
       check(JSON.stringify(ret.split(', ').sort()) === JSON.stringify([...want].sort()), `GR25 K: ${out.file} の中の layout.js の書き出しに、8 つの定数と 4 つの関数がすべてある`, ret);
     }
@@ -967,6 +977,12 @@ export async function runAppTests(log = console.log) {
     runMain(['--gr26p6', '--ro'], GR26P6_ROWS, 'P6(ResizeObserver あり)');
     runMain(['--gr26p6', '--built'], GR26P6_ROWS, 'P6(ビルドした HTML)');
     runMain(['--gr26p6', '--built', '--ro'], GR26P6_ROWS, 'P6(ビルドした HTML、ResizeObserver あり)');
+    // GR27 の P2(GR27 指示書 4 章の O・L)。モデルツリーと範囲の候補の受け渡しと、大きいファイルの知らせを、src/app/main.js とビルドした HTML のスクリプトで
+    runMain(['--gr27'], GR27_ROWS, 'O・L(GR27)');
+    runMain(['--gr27', '--built'], GR27_ROWS, 'O・L(GR27。ビルドした HTML)');
+    // GR27 P5 の S・M(範囲の欄の候補の文字と、モデルツリーの行を見えている分だけ並べること)。src/app/main.js とビルドした HTML のスクリプトで
+    runMain(['--gr27p5'], GR27P5_ROWS, 'S・M(GR27 P5)');
+    runMain(['--gr27p5', '--built'], GR27P5_ROWS, 'S・M(GR27 P5。ビルドした HTML)');
     {
       const { buildOutline } = await import('../../src/app/outline.js');
       const { prepareFromAnalysis } = await import('../../src/app/prepare.js');

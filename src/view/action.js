@@ -27,7 +27,7 @@
 //
 // 読み方は GR7 P1 の裁定(Q1〜Q13)による(reports/GR7/P1_symbols_*.md・P3_render_*.md の「本文から外れる点」)。
 
-import { joinTokens } from './common.js';
+import { joinTokens, runNested } from './common.js';
 import { pathOf, isPartLike } from './scope.js';
 import { compartmentOf, noteContent } from './diagram.js';
 import { textWidth } from './textwidth.js';
@@ -209,23 +209,27 @@ export function flowKit(ctx, env) {
 
   // 区画の中の本体の図(枠なしの箱 action-flow-view)。el が if・ループの本体(名前のない ActionUsage)なら、そのメンバーを置く。
   // else if … の else の本体のように、本体が種類のある行動そのもの(IfActionUsage など)なら、その行動 1 つを置く(裁定 Q9 の 4)
-  function bodyBox(owner, el, sym, asNode = false) {
+  // 行動の入れ子(actionBox → addBodies → bodyBox → fillFlow → placeFlow → actionBox …)は、明示のスタックで回す(GR27 の R。設計書 2.6 節。
+  // 各関数は、同じ名前の入口(外から呼ぶもの)と、ジェネレーター(…Gen。入れ子の中から yield で呼ぶもの)に分けた。箱を作る順は前の再帰と同じ)
+  function bodyBox(owner, el, sym, asNode = false) { return runNested(bodyBoxGen(owner, el, sym, asNode)); }
+  function* bodyBoxGen(owner, el, sym, asNode) {
     const b = reg({ id: `${owner.id}.${sym}`, type: 'box', symbol: 'action-flow-view', plain: true, bodyOf: owner.id, el: null, src: srcOf(el), parent: owner.id, region: [], ports: [], compartments: [], header: { keyword: '', name: '' }, ellipsis: false, omittedGeneralView: false });
     flowBoxes.add(b);
-    if (asNode) placeFlow(b, ctx.owningRel(el), el, ctx.ownerOf(el));
-    else fillFlow(b, el);
+    if (asNode) yield placeFlowGen(b, ctx.owningRel(el), el, ctx.ownerOf(el));
+    else yield fillFlowGen(b, el, new Set());
     return b;
   }
   // 本体を図にするか(裁定 Q9 の 2): 本体が行動・継承・フロー・結合を直接持つか、本体が種類のある行動そのものなら図
   const bodyAsNode = (el) => el.kind !== 'ActionUsage';
   const bodyIsDiagram = (el) => bodyAsNode(el) || hasFlowMembers(ctx, el);
   // nodeSections の本体を、本体の図(c.body)か、本体の原文の文字(action-body-textual)にする
-  function addBodies(box, pre) {
+  function addBodies(box, pre) { runNested(addBodiesGen(box, pre)); }
+  function* addBodiesGen(box, pre) {
     for (const c of pre) {
       if (!c.bodyEl) continue;
       const el = c.bodyEl;
       delete c.bodyEl;
-      if (bodyIsDiagram(el)) c.body = bodyBox(box, el, c.symbol, bodyAsNode(el)).id;
+      if (bodyIsDiagram(el)) c.body = (yield bodyBoxGen(box, el, c.symbol, bodyAsNode(el))).id;
       else for (const t of wrap(joinTokens(ctx.elemTokens(el)))) c.lines.push({ text: t, src: srcOf(el) });
     }
   }
@@ -247,7 +251,8 @@ export function flowKit(ctx, env) {
 
   // 行動の箱。outer は描く範囲の外側の箱(行動の定義は action-def、perform の行動は action の形で名前の区画を
   // «perform action» にする。裁定 Q5)
-  function actionBox(el, parent, outer = false) {
+  function actionBox(el, parent, outer = false) { return runNested(actionBoxGen(el, parent, outer)); }
+  function* actionBoxGen(el, parent, outer) {
     let symbol, kw, nameSym, icon = null;
     const nk = NODE_KINDS.find(([m]) => ctx.is(el, m));
     const ck = outer && env.fx?.C ? calcKind(ctx, el) : null;
@@ -263,13 +268,13 @@ export function flowKit(ctx, env) {
     if (sec.after.length) h.after = sec.after;
     const box = reg({ id: idOf(el), type: 'box', symbol, nameSym, el, src: srcOf(el), parent: parent?.id ?? null, region: [], ports: [], compartments: [], ...(sec.pre.length ? { preCompartments: sec.pre } : {}), header: h, ellipsis: false, omittedGeneralView: false, ...(icon ? { icon } : {}) });
     put(parent, box);
-    addBodies(box, sec.pre);
+    yield addBodiesGen(box, sec.pre);
     // perform-action-usage は引数も中の図も持たない(本文の図)。メンバーは文字の区画に出す
     if (symbol === 'perform-action-usage') { fillText(box, el, new Set()); return box; }
     const ps = params(box, el);
     if (nk) return box; // 種類のある行動の中身は、式と本体の区画で描く
     flowBoxes.add(box);
-    fillFlow(box, el, ps);
+    yield fillFlowGen(box, el, ps);
     return box;
   }
 
@@ -306,23 +311,25 @@ export function flowKit(ctx, env) {
   }
 
   // ns のメンバーを box の領域に置く(skip は引数にしたメンバー)
-  function fillFlow(box, ns, skip = new Set()) {
+  function fillFlow(box, ns, skip = new Set()) { runNested(fillFlowGen(box, ns, skip)); }
+  function* fillFlowGen(box, ns, skip) {
     for (const { rel, el } of ctx.members(ns)) {
       if (rel.kind === 'Membership') continue;
       if ((el.start === el.end && !conf(ctx, el, 'Succession')) || skip.has(el)) continue;
       if (conf(ctx, rel, 'ElementFilterMembership')) { if (box && !box.plain) addLine(box.compartments, compartmentOf(ctx, rel, el, ns), el, joinTokens(ctx.declTokens(rel)).replace(/^filter\s*/, '')); continue; }
       if (!drawn(el)) {
         if (box) box.ellipsis = true;
-        if (env.viewMode && conf(ctx, el, 'Namespace')) fillFlow(box, el);
+        if (env.viewMode && conf(ctx, el, 'Namespace')) yield fillFlowGen(box, el, new Set());
         continue;
       }
-      placeFlow(box, rel, el, ns);
+      yield placeFlowGen(box, rel, el, ns);
     }
     if (box && !box.plain && ctx.is(ns, 'ViewUsage')) for (const exp of ns.owned) if (conf(ctx, exp, 'Expose')) addLine(box.compartments, { symbol: 'exposes-compartment', title: 'exposes' }, exp, joinTokens(ctx.declTokens(exp)).replace(/^expose\s*/, ''));
   }
 
   // メンバーを、アクションフロービューの記号・線・文字の区画に振り分ける。box が null なら最上位(view で公開した要素)
-  function placeFlow(box, rel, el, ns) {
+  function placeFlow(box, rel, el, ns) { runNested(placeFlowGen(box, rel, el, ns)); }
+  function* placeFlowGen(box, rel, el, ns) {
     if (!ctx.user(el)) return;
     if (ctx.is(el, 'TransitionUsage')) { pending.push({ el, box, kind: 'transition' }); return; }
     if (isDrawnSuccession(ctx, el) && !ctx.is(el, 'SuccessionFlowUsage')) { pending.push({ el, box, kind: 'succession' }); return; }
@@ -342,11 +349,11 @@ export function flowKit(ctx, env) {
     if (isActionLike(ctx, el) && ctx.is(el, 'ActionUsage')) {
       const node = CONTROL_NODES.find(([m]) => ctx.is(el, m));
       if (node) { pnode(node[1], el, box); return; }
-      actionBox(el, box);
+      yield actionBoxGen(el, box, false);
       return;
     }
     // 行動の定義は、最上位(view で公開したもの)では箱にする
-    if (!box && ctx.is(el, 'ActionDefinition')) { actionBox(el, null, true); return; }
+    if (!box && ctx.is(el, 'ActionDefinition')) { yield actionBoxGen(el, null, true); return; }
     toText(box, rel, el, ns);
   }
 

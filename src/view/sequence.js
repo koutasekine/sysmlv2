@@ -25,7 +25,7 @@
 //          型のメッセージを再定義して受け継ぐ端は求めない。1 区切りで範囲が直接持つ事象(ゲート)を指す端は描かない
 //   Q9    生存線は線ではなく頭に付く記号(type 'lifeline')。図の質の (a) の障害物と (b) の線に入れない
 
-import { joinTokens, compareEdgeIds } from './common.js';
+import { joinTokens, compareEdgeIds, runNested } from './common.js';
 import { compartmentOf, headerOf, noteContent, classify } from './diagram.js';
 import { isPartLike, pathOf } from './scope.js';
 import { successionEnds } from './ends.js';
@@ -174,8 +174,9 @@ export function buildSequenceDiagram(ctx, candidate, scope, fx = {}) {
     // 頭の中(入れ子の部品・ポート・事象)の要素を集める
     const inside = [];
     // then の継承(SourceSuccession)は原文の範囲が空のことがあるので、範囲の空のものも含める
-    const walkIn = (e, path) => { for (const { el } of ctx.members(e)) { if (el.start === el.end && !isSuccession(ctx, el)) continue; inside.push({ el, path: [...path, el] }); if (ctx.isAny(el, ['PartUsage', 'PortUsage', 'OccurrenceUsage'])) walkIn(el, [...path, el]); } };
-    for (const el of heads) walkIn(el, [el]);
+    // 入れ子は明示のスタックで回す(GR27 の R。inside に入れる順は前の再帰と同じ)
+    const walkIn = function* (e, path) { for (const { el } of ctx.members(e)) { if (el.start === el.end && !isSuccession(ctx, el)) continue; inside.push({ el, path: [...path, el] }); if (ctx.isAny(el, ['PartUsage', 'PortUsage', 'OccurrenceUsage'])) yield walkIn(el, [...path, el]); } };
+    for (const el of heads) runNested(walkIn(el, [el]));
     // 17b の短い書き方(event m.sourceEvent;)の事象。メッセージ → { src: [path], tgt: [path] }
     const shorthand = new Map();
     for (const { el, path } of inside) {

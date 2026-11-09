@@ -14,6 +14,19 @@ export function escapeXml(s) {
   return String(s).replace(NOT_XML, '\uFFFD').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// 入れ子の深さに比例して呼び出しを深くしないための回し方(GR27 の R。設計書 2.6 節)。再帰の関数をジェネレーターにし、子の呼び出しを
+// `yield 子のジェネレーター` と書く(子の戻り値は yield の値で受け取る)。runNested は、それを 1 つのループと配列のスタックで回す。
+// 子を呼ぶ順・戻り値・副作用の順は、ふつうの再帰と同じ
+export function runNested(g0) {
+  const st = [g0];
+  let v;
+  while (st.length) {
+    const r = st[st.length - 1].next(v);
+    if (r.done) { st.pop(); v = r.value; } else { st.push(r.value); v = undefined; }
+  }
+  return v;
+}
+
 // 構文木(tree)・名前解決の結果(model)・原文(text)を引く道具をまとめる
 export function makeContext(tree, model, text) {
   const parent = new Map();

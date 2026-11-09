@@ -12,6 +12,7 @@
 //   - アクションフローの図は、src/view/index.js の FLOW_LAYERS のとき、流れの段で並べる(flowPositions。GR8)。
 
 import { textWidth } from './textwidth.js';
+import { runNested } from './common.js';
 import { BOXLIKE, containsObj, chainOf, obstaclesFor, segHitsRect, hugsBorder, portRect, HUG_GAP, PORT_CLEAR, ARROW_END } from './quality.js';
 
 export const FS = 13;       // 名前の字の大きさ
@@ -573,14 +574,20 @@ function alignTyped(pos, adj) {
 function estWidths(d, get) {
   const memo = new Map();
   const size = (o) => { if (memo.has(o.id)) return memo.get(o.id); const s = o.type === 'box' ? boxSize(o, get, size) : o.type === 'note' ? noteSize(o) : o.type === 'dparam' ? dparamSize(o) : o.type === 'pnode' ? pnodeSize(o) : { w: 0, h: 0, m: { l: 0, r: 0, t: 0, b: 0 } }; memo.set(o.id, s); return s; };
+  // 入れ子の箱の大きさを、内側から順に(後順に)先に求めて覚えておく(place と同じ。size → boxSize → grid → size の再帰が覚えた値で
+  // 止まり、入れ子の深さに比例して深くならない。GR27 の R。大きさは箱ごとに決まる値なので、求める順序で変わらない)
+  for (const o of postOrder(d.top.map(get), get)) size(o);
   const out = new Map();
   for (const o of d.objects.values()) if (o.type === 'box' || o.type === 'note' || o.type === 'dparam' || o.type === 'pnode') { const s = size(o); out.set(o.id, s.w + s.m.l + s.m.r); }
   return out;
 }
 
-function assign(items, g, ox, oy, get, size) {
+// 箱の位置。入れ子の箱の中(assign → setPos → assign …)は、明示のスタックで回す(GR27 の R。設計書 2.6 節。呼ぶ順は前の再帰と同じ)
+function assign(items, g, ox, oy, get, size) { runNested(assignGen(items, g, ox, oy, get, size)); }
+function* assignGen(items, g, ox, oy, get, size) {
   const GAP = g.gap ?? 40;
-  items.forEach((o, i) => {
+  for (let i = 0; i < items.length; i++) {
+    const o = items[i];
     const s = size(o);
     const { c, r } = g.pos ? g.pos.get(o.id) : g.cells ? g.cells.get(o.id) : { c: i % g.cols, r: Math.floor(i / g.cols) };
     let x = ox + g.colW.slice(0, c).reduce((a, b) => a + b, 0) + GAP * c + s.m.l;
@@ -590,16 +597,16 @@ function assign(items, g, ox, oy, get, size) {
     if (g.colX) { x = ox + g.colX[c] + Math.floor((g.colW[c] - s.w) / 2); y = oy + g.rowY[r] + s.m.t; }
     // 状態遷移ビューの fork・join の棒は、マスの高さの中ほど(同じ行の円の中心の高さ)に置く
     if (o.type === 'pnode' && (o.symbol === 'fork-node' || o.symbol === 'join-node')) y += 6;
-    setPos(o, x, y, s, get, size);
-  });
+    yield setPosGen(o, x, y, s, get, size);
+  }
 }
 
-function setPos(o, x, y, s, get, size) {
+function* setPosGen(o, x, y, s, get, size) {
   o.x = x; o.y = y; o.w = s.w; o.h = s.h;
   if (o.type !== 'box') return;
   // 領域の中
   const items = o.region.map(get);
-  if (items.length) assign(items, s.grid, x + (s.regionOx ?? RPAD + s.regionPadL), y + (s.regionOy ?? s.headH + PAD), get, size);
+  if (items.length) yield assignGen(items, s.grid, x + (s.regionOx ?? RPAD + s.regionPadL), y + (s.regionOy ?? s.headH + PAD), get, size);
   // アクションフロービューの列(perform-actions-swimlanes の中): 上と下の辺をそろえる(本文 8.2.3.17 節の注)
   if (o.laneGroup && items.length) {
     const hMax = Math.max(...items.map((k) => k.h));
@@ -612,7 +619,7 @@ function setPos(o, x, y, s, get, size) {
       c.y = py;
       c.lines.forEach((l, i) => { l.base = py + (i + 2) * LINE; l.rect = { x: x + PAD - 3, y: py + (i + 1) * LINE + 3, w: Math.min(s.w - 2 * PAD + 6, textWidth(l.text, FSS) + 6), h: LINE }; });
       py += (c.lines.length + 1) * LINE + 8;
-      if (c.body) py += placeBody(o, c, x, py, s, get, size);
+      if (c.body) py += yield placeBody(o, c, x, py, s, get, size);
     }
   }
   o.regionY = y + s.headH;
@@ -624,7 +631,7 @@ function setPos(o, x, y, s, get, size) {
     c.y = cy;
     c.lines.forEach((l, i) => { l.base = cy + (i + 2) * LINE; l.rect = { x: x + PAD - 3, y: cy + (i + 1) * LINE + 3, w: Math.min(s.w - 2 * PAD + 6, textWidth(l.text, FSS) + 6), h: LINE }; });
     cy += (c.lines.length + 1) * LINE + 8;
-    if (c.body) cy += placeBody(o, c, x, cy, s, get, size);
+    if (c.body) cy += yield placeBody(o, c, x, cy, s, get, size);
   }
   // ポート(辺ごとに記述の順に並べる)
   for (const side of SIDES) {
@@ -647,18 +654,19 @@ function setPos(o, x, y, s, get, size) {
 }
 
 // 区画の中の本体の図(アクションフロービューの action-flow-view。GR7)を、区画の文字の下に置く。戻り値は使った高さ。
-// 本体の箱は持ち主の箱の幅いっぱいに広げ(左右 BODY_IN ずつあける)、中の格子を中央に置く
+// 本体の箱は持ち主の箱の幅いっぱいに広げ(左右 BODY_IN ずつあける)、中の格子を中央に置く(ジェネレーター。setPosGen の中から yield で呼ぶ)
 const BODY_IN = 4;
-function placeBody(o, c, x, y, s, get, size) {
+function* placeBody(o, c, x, y, s, get, size) {
   const b = get(c.body);
   const bs = size(b);
   const w = Math.max(bs.w, s.w - 2 * BODY_IN);
-  setPos(b, x + (s.w - w) / 2, y, { ...bs, w, regionOx: bs.regionOx + (w - bs.w) / 2 }, get, size);
+  yield setPosGen(b, x + (s.w - w) / 2, y, { ...bs, w, regionOx: bs.regionOx + (w - bs.w) / 2 }, get, size);
   return bs.h + 4;
 }
 
 // 入れ子のポートを持つポートの、子のポートの位置(外側の辺に並べる)
-function placeNested(p, get) {
+function placeNested(p0, get) { runNested(placeNestedGen(p0, get)); }
+function* placeNestedGen(p, get) {
   const kids = (p.children ?? []).map(get);
   if (!kids.length) return;
   const vertical = p.side === 'l' || p.side === 'r';
@@ -674,7 +682,7 @@ function placeNested(p, get) {
     if (p.side === 'r') { k.cx = p.cx + p.pw / 2; k.cy = c; }
     if (p.side === 't') { k.cx = c; k.cy = p.cy - p.ph / 2; }
     if (p.side === 'b') { k.cx = c; k.cy = p.cy + p.ph / 2; }
-    placeNested(k, get);
+    yield placeNestedGen(k, get);
   }
 }
 
@@ -682,20 +690,25 @@ function placeNested(p, get) {
 export function holderHead(p) { return textWidth(p.label, FSS) + 28; }
 
 // 辺に沿ったポートの間隔。上と下の辺では、ラベル(四角の左上・右下に書く)が隣と重ならない幅をとる
-function portStep(p, side, get) {
-  const s = portSize(p, get);
+// portStep と portSize は、入れ子のポートの深さだけ互いに呼ぶので、明示のスタックで回す(GR27 の R)
+function portStep(p, side, get) { return runNested(portStepGen(p, side, get)); }
+function* portStepGen(p, side, get) {
+  const s = yield portSizeGen(p, get);
   // ラベルの長さに合わせて広げる(GR4 P2 の 3 回目の裁定 3)。左右の辺では、ラベルの高さと上下の余白をとる
   if (side === 'l' || side === 'r') return Math.max(PSTEP + 4, s.h + 16);
   const lw = p.children?.length ? 0 : textWidth(p.label, FSS) + 8;
   return Math.max(PSTEP, s.w + 16, lw + PORT + 20);
 }
 
-export function portSize(p, get) {
+export function portSize(p, get) { return runNested(portSizeGen(p, get)); }
+function* portSizeGen(p, get) {
   if (p.type === 'proxy') return { w: 10, h: 10 };
   const kids = p.children ?? [];
   if (!kids.length) return { w: PORT, h: PORT };
   const side = p.side ?? 't';
-  const long = holderHead(p) + kids.reduce((a, id) => a + portStep(get(id), side, get), 0) + 8;
+  let sum = 0;
+  for (const id of kids) sum += yield portStepGen(get(id), side, get);
+  const long = holderHead(p) + sum + 8;
   // 長い四角は持ち主の縁をまたぐので、ラベルと矢印を縁より外側の半分に書けるよう太さを 36 にする
   return p.side === 'l' || p.side === 'r' ? { w: 36, h: long } : { w: long, h: 36 };
 }
@@ -703,7 +716,10 @@ export function portSize(p, get) {
 // ポートのラベルの幅と、ポートが箱の外へはみ出す量(格子の余白にする)
 function portMargins(o, get) {
   const m = { l: 0, r: 0, t: 0, b: 0 };
-  const walk = (p, depth) => {
+  // 入れ子のポートを明示のスタックでたどる(GR27 の R。前と同じ前順)
+  const st = o.ports.map((id) => [get(id), 0]).reverse();
+  while (st.length) {
+    const [p, depth] = st.pop();
     const ps = portSize(p, get);
     const lw = p.children?.length ? 0 : textWidth(p.label, FSS) + 6;
     const out = (p.side === 'l' || p.side === 'r' ? ps.w : ps.h) / 2 + depth * 9;
@@ -711,9 +727,9 @@ function portMargins(o, get) {
     if (p.side === 'r') m.r = Math.max(m.r, out + lw + 4);
     if (p.side === 't') m.t = Math.max(m.t, out + LINE + 4);
     if (p.side === 'b') m.b = Math.max(m.b, out + LINE + 4);
-    for (const k of p.children ?? []) walk(get(k), depth + 1);
-  };
-  for (const id of o.ports) walk(get(id), 0);
+    const ks = p.children ?? [];
+    for (let i = ks.length - 1; i >= 0; i--) st.push([get(ks[i]), depth + 1]);
+  }
   return m;
 }
 
@@ -899,6 +915,7 @@ const LABEL = 5e4;       // ポートのラベルの場所を通る重み
 const PORTHIT = 2e5;     // ほかの線のポート・引数・proxy の記号を通る重み(GR4 の完了報告の確認の後の 2 回目の指示 2)
 const UTURN = 1.5e4;     // コの字(折れた後、1 つ前の区間と逆向きに折れる)の重み(同上)
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const A_SLACK = 1;       // A* の打ち切りの余裕(GR27 の A。費用の浮動小数の和の誤差より十分大きく、結果は変えない)
 
 function routeAll(d, get) {
   for (const o of d.objects.values()) if (o.type === 'dot') moveDotOutside(o, d, get);
@@ -1291,6 +1308,9 @@ function moveDotOutside(dot, d, get) {
 
 // GR18 の直しの切り替え。B3: 経路の探索の区間の費用で、近くの四角だけを桝目の索引で拾う(結果は変えない。切れば前のとおり全部を見る)
 export const GR18_LAYOUT = { B3: true };
+// GR27 の直しの切り替え(図は変えない)。A: 線の探索を A*(残りの費用の見積もり)にする。切れば見積もりを 0 にする(取り出す順と打ち切りは
+// ダイクストラ法と同じになる)。X: 線ごとに変わらない索引(箱の縁・ラベル)を配置ごとに 1 回だけ作る。切れば線ごとに作る
+export const GR27_LAYOUT = { A: true, X: true };
 // 四角の並び rects の桝目の索引(GR18 の B3)。四角を margin だけ広げた範囲が重なる桝目に入れておき、each(p, q, f) は、縦横の区間 p–q の
 // 外接矩形が重なる桝目の四角を、重ねずに 1 回ずつ f に渡す。判定(segHitsRect の m ≤ margin、hugsBorder の gap < margin)が
 // 成り立ちうる四角は必ず渡す
@@ -1315,11 +1335,25 @@ function rectIndex(rects, margin) {
   };
 }
 
-// 経路の探索が使い回す配列(GR18 の B3)。世代 gen を 1 つ進めると、どの状態も「まだ入れていない」になる
+// 線ごとに変わらない四角の並び(d.boxLike・d.labelRects)の桝目の索引を、並びごとに 1 回だけ作って使い回す(GR27 の X)。
+// 2 つの並びは layoutDiagram が配置のたびに新しく作り、線を引いている間は中の四角も動かないので、並びが同じなら索引も同じになる
+// (並びが変われば別の鍵になる)。margin は並びごとに決まった値(箱の縁は HUG_GAP + 1、ラベルは 2)
+const IX_CACHE = new WeakMap();
+function sharedIndex(rects, margin) {
+  let m = IX_CACHE.get(rects);
+  if (!m) IX_CACHE.set(rects, m = new Map());
+  let ix = m.get(margin);
+  if (!ix) m.set(margin, ix = rectIndex(rects, margin));
+  return ix;
+}
+
+// 経路の探索が使い回す配列(GR18 の B3)。世代 gen を 1 つ進めると、どの状態も「まだ入れていない」になる。
+// hv・hst は、格子点ごとの残りの費用の見積もりの控え(GR27 の A。大きさは seg と同じ。格子点の数 nx×ny 以上)
 let SCRATCH = null;
 function routeScratch(n, m) {
   if (!SCRATCH || SCRATCH.dist.length < n || SCRATCH.seg.length < m || SCRATCH.gen >= 0x7fffffff) {
-    SCRATCH = { dist: new Float64Array(Math.max(n, SCRATCH?.dist.length ?? 0)), prev: new Int32Array(Math.max(n, SCRATCH?.dist.length ?? 0)), st: new Int32Array(Math.max(n, SCRATCH?.dist.length ?? 0)), seg: new Float64Array(Math.max(m, SCRATCH?.seg.length ?? 0)), sst: new Int32Array(Math.max(m, SCRATCH?.seg.length ?? 0)), gen: 0 };
+    const N = Math.max(n, SCRATCH?.dist.length ?? 0), K = Math.max(m, SCRATCH?.seg.length ?? 0);
+    SCRATCH = { dist: new Float64Array(N), prev: new Int32Array(N), st: new Int32Array(N), seg: new Float64Array(K), sst: new Int32Array(K), hv: new Float64Array(K), hst: new Int32Array(K), gen: 0 };
   }
   SCRATCH.gen++;
   return SCRATCH;
@@ -1426,8 +1460,8 @@ function findRoute(A, B, ca, cb, d, get, used) {
   const D = S ? (k) => (st[k] === gen ? dist[k] : Infinity) : (k) => dist[k];
   const setD = S ? (k, v, pk) => { st[k] = gen; dist[k] = v; prev[k] = pk; } : (k, v, pk) => { dist[k] = v; if (pk !== null) prev[k] = pk; };
   const opposite = (a, b) => b !== 4 && DIRS[a][0] === -DIRS[b][0] && DIRS[a][1] === -DIRS[b][1];
-  // 型付き配列の二分ヒープ((費用, 状態の番号) の辞書式の順。GR10 P2 の裁定の案 3)。比べ方と入れ替え方は前の配列の
-  // ヒープと同じで、同じ順の組は区別できないので、取り出す順は変わらない
+  // 型付き配列の二分ヒープ((費用, 状態の番号) の辞書式の順。GR10 P2 の裁定の案 3)。GR27 の A からは、費用の代わりに、
+  // 残りの費用の見積もりを足した値 f を入れる(A*)。同じ費用の経路の選び方は、取り出す順に頼らず、下の tryTarget と緩和で明示に決める
   let hc = new Float64Array(1024), hk = new Int32Array(1024), hn = 0;
   const less = (a, b) => hc[a] < hc[b] || (hc[a] === hc[b] && hk[a] < hk[b]);
   const swap = (a, b) => { const c = hc[a]; hc[a] = hc[b]; hc[b] = c; const k = hk[a]; hk[a] = hk[b]; hk[b] = k; };
@@ -1443,7 +1477,9 @@ function findRoute(A, B, ca, cb, d, get, used) {
   };
   // 区間の費用。箱・注の記号・ポートの記号・ラベルとの当たりは、区間の近くのものだけを桝目の索引(rectIndex)で拾って、同じ判定で
   // 数える(GR18 の B3。拾わないものは判定が成り立たないものだけなので、費用は変わらない)
-  const ixObst = rectIndex(obstacles, 2), ixBox = rectIndex(d.boxLike, HUG_GAP + 1), ixPort = rectIndex(portRects, 0), ixLabel = rectIndex(d.labelRects, 2);
+  // 障害物とポートの記号は線ごとに違う(両端で決まる)ので線ごとに作り、箱の縁とラベルは配置ごとに 1 回だけ作る(GR27 の X)
+  const X = GR27_LAYOUT.X;
+  const ixObst = rectIndex(obstacles, 2), ixBox = X ? sharedIndex(d.boxLike, HUG_GAP + 1) : rectIndex(d.boxLike, HUG_GAP + 1), ixPort = rectIndex(portRects, 0), ixLabel = X ? sharedIndex(d.labelRects, 2) : rectIndex(d.labelRects, 2);
   const segCost = (p, q) => {
     let c = Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
     if (GR18_LAYOUT.B3) {
@@ -1473,38 +1509,68 @@ function findRoute(A, B, ca, cb, d, get, used) {
     return v;
   };
   const dirOf = (dx, dy) => DIRS.findIndex(([a, b]) => a === dx && b === dy);
+  // 残りの費用の見積もり(A*。GR27 の A): 格子点から、着く点の候補(点は出した点、内側の縁は着いてよい区間)までの縦横の距離の最小。
+  // 見積もりが費用を超えないこと: 区間の費用 segCost は区間の長さ |Δx|+|Δy| に、0 以上の重み(CROSS・HUG・PORTHIT・LABEL・
+  // OVERLAP・NEAR)を足したもの、曲がりの重み(BEND・UTURN)も 0 以上、着いた後に足す費用(tryTarget の曲がりと端までの区間)も
+  // 0 以上なので、どの経路の残りの費用も、着く点までの縦横の距離以上になる。また見積もりは縦横の距離の最小なので、隣の格子点との
+  // 差は 2 点の縦横の距離(= その区間の長さ ≤ 区間の費用)以下で、取り出した状態の費用はそこで決まる(費用が下がることはない)。
+  // 着く点の格子点では見積もりは 0
+  const tgt = GR27_LAYOUT.A ? cb.map((c) => (c.line ? { line: c.line } : { x: Math.round(c.sx * 2) / 2, y: Math.round(c.sy * 2) / 2 })) : [];
+  const hv = S ? S.hv : new Float64Array(nx * ny).fill(-1), hst = S ? S.hst : null;
+  const H = (cell) => {
+    if (S ? hst[cell] === gen : hv[cell] >= 0) return hv[cell];
+    const x = xs[cell % nx], y = ys[(cell / nx) | 0];
+    let h = tgt.length ? Infinity : 0;
+    for (const t of tgt) {
+      const L = t.line;
+      const v = !L ? Math.abs(x - t.x) + Math.abs(y - t.y)
+        : L.x !== undefined ? Math.abs(x - L.x) + Math.max(0, L.y1 + 6 - y, y - (L.y2 - 6))
+          : Math.abs(y - L.y) + Math.max(0, L.x1 + 6 - x, x - (L.x2 - 6));
+      if (v < h) h = v;
+    }
+    hv[cell] = h; if (S) hst[cell] = gen;
+    return h;
+  };
   const startOf = new Map();
   ca.forEach((c, n) => {
     const i = xi.get(Math.round(c.sx * 2) / 2), j = yi.get(Math.round(c.sy * 2) / 2);
     if (i === undefined || j === undefined) return;
     const k = key(i, j, dirOf(c.dx, c.dy), 4);
     const c0 = segCost({ x: c.ax, y: c.ay }, { x: c.sx, y: c.sy });
-    if (c0 < D(k)) { setD(k, c0, S && st[k] === gen ? prev[k] : S ? -1 : null); startOf.set(k, n); push(c0, k); }
+    if (c0 < D(k)) { setD(k, c0, S && st[k] === gen ? prev[k] : S ? -1 : null); startOf.set(k, n); push(c0 + H(j * nx + i), k); }
   });
-  // 着く点: 出した点に、端へ向かう向きで着く(曲がるなら BEND を足す)。内側の縁なら、縁の上の格子点に縁へ向かう向きで着く
-  let bestCost = Infinity, bestK = -1, bestT = null;
+  // 着く点: 出した点に、端へ向かう向きで着く(曲がるなら BEND を足す)。内側の縁なら、縁の上の格子点に縁へ向かう向きで着く。
+  // 同じ費用の経路の選び方(GR27 の A): 前のダイクストラ法((費用, 状態の番号) の順に取り出し、先に見つけたものを採る)が選ぶものと
+  // 同じものを、取り出す順によらずに選ぶ。着く点は、(最後の費用 fin, 着いた状態の費用, 状態の番号, 着く点の候補の番号) の辞書式の
+  // 最小とする(前の方法では、これより先に取り出す状態は fin がより大きいので、最初に見つけるのがこの組になる)
+  let bestCost = Infinity, bestK = -1, bestT = null, bestG = Infinity;
+  const better = (fin, cost, k) => fin < bestCost || (fin === bestCost && (cost < bestG || (cost === bestG && k < bestK)));
   const tryTarget = (k, cost, i, j, dir, pd) => {
     for (let n = 0; n < cb.length; n++) {
       const c = cb[n];
       if (c.line) {
         const onLine = c.line.x !== undefined ? xs[i] === c.line.x && ys[j] >= c.line.y1 + 6 && ys[j] <= c.line.y2 - 6 : ys[j] === c.line.y && xs[i] >= c.line.x1 + 6 && xs[i] <= c.line.x2 - 6;
-        if (onLine && dir === dirOf(-c.dx, -c.dy) && cost < bestCost) { bestCost = cost; bestK = k; bestT = { ...c, ax: xs[i], ay: ys[j] }; }
+        if (onLine && dir === dirOf(-c.dx, -c.dy) && better(cost, cost, k)) { bestCost = cost; bestG = cost; bestK = k; bestT = { ...c, ax: xs[i], ay: ys[j] }; }
         continue;
       }
       if (xs[i] !== Math.round(c.sx * 2) / 2 || ys[j] !== Math.round(c.sy * 2) / 2) continue;
       const fd = dirOf(-c.dx, -c.dy);
       const fin = cost + (dir === fd ? 0 : BEND + (opposite(fd, pd) ? UTURN : 0)) + segCost({ x: c.sx, y: c.sy }, { x: c.ax, y: c.ay });
-      if (fin < bestCost) { bestCost = fin; bestK = k; bestT = c; }
+      if (better(fin, cost, k)) { bestCost = fin; bestG = cost; bestK = k; bestT = c; }
     }
   };
   while (hn > 0) {
     pop();
-    const cost = popC, k = popK;
-    // 取り出す費用は小さい順なので、ここで bestCost 以上なら、残りもすべて下の continue に当たる。そこで打ち切る(GR18 の B3。結果は同じ)
-    if (GR18_LAYOUT.B3 && cost >= bestCost) break;
-    if (cost > D(k) || cost >= bestCost) continue;
+    const f = popC, k = popK;
+    // f は小さい順に取り出す。f が bestCost を超えた状態とその先は、着いても bestCost を超える(見積もりは費用を超えない)ので打ち切る。
+    // 同じ費用の候補をすべて見るため、f が bestCost に等しい状態までは取り出す(浮動小数の和の誤差の分の余裕 A_SLACK をとる。
+    // 余分に取り出した状態は、下の比べ方で結果を変えない)
+    if (f > bestCost + A_SLACK) break;
     const pd = k % 5, t = (k - pd) / 5, dir = t & 3, cell = t >> 2, i = cell % nx, j = (cell / nx) | 0;
+    const cost = D(k);
+    if (f > cost + H(cell)) continue; // 後でもっと安く入れた状態の古い項目
     tryTarget(k, cost, i, j, dir, pd);
+    if (cost >= bestCost) continue; // この先は bestCost より高い
     for (let nd = 0; nd < 4; nd++) {
       const [dx, dy] = DIRS[nd];
       if (dx === -DIRS[dir][0] && dy === -DIRS[dir][1]) continue; // 引き返さない
@@ -1513,7 +1579,14 @@ function findRoute(A, B, ca, cb, d, get, used) {
       const turn = nd !== dir;
       const c2 = cost + unitCost(i, j, i2, j2) + (turn ? BEND + (opposite(nd, pd) ? UTURN : 0) : 0);
       const k2 = key(i2, j2, nd, turn ? dir : pd);
-      if (c2 < D(k2)) { setD(k2, c2, k); push(c2, k2); }
+      const d2 = D(k2);
+      if (c2 < d2) { setD(k2, c2, k); push(c2 + H(j2 * nx + i2), k2); }
+      else if (c2 === d2) {
+        // 同じ費用の 1 つ前の状態の選び方(GR27 の A): 前の方法では、(費用, 状態の番号) の順で先に取り出した状態が先に入れ、同じ費用では
+        // 入れ替えなかった。その順で小さいほうを採る。始めの状態(prev が -1)は、同じ費用なら入れ替えない(前と同じ)
+        const pk = prev[k2];
+        if (pk >= 0) { const dp = D(pk); if (cost < dp || (cost === dp && k < pk)) prev[k2] = k; }
+      }
     }
   }
   if (bestK < 0) {

@@ -73,6 +73,8 @@
 //   W5: (R を既定に入れたとき)5 つのビューの 309 ファイル・記号ごとの入力・例(全候補)で、行為者(棒人間)に着く線の端のうち、
 //       棒人間の図形(頭と体の外接矩形)を 2 px 広げたものの外にあるものが 0 本。R2 を既定に入れたときは、左右から着く線の端
 //       (最後の区間が横向きのもの)が、腕の線の端(手の先)から 2 px 以内(GR15 v15.2 の指示書 3.2 節)
+//   GR27 で加わった基準(GR27 指示書 4 章。下の GR27 の節の説明): A・X(線の探索の A* と索引の使い回しを切った図と同じ)、R(スタック 150 KB で
+//   入れ子の深い入力を描ける)、O(Worker の結果の受け渡しの形を戻したものが今の形と同じ、切り替えの結果にモデルツリーが入らない)、L(バイト数)
 //   全体の時間は記録するだけで、合否に使わない(GR20 の Z1。GR19 までは全体が 15 分以内に終わることを合否にしていた)。失敗が 1 つでもあれば終了コード 1 で終わる。
 
 import fs from 'node:fs';
@@ -101,6 +103,8 @@ const t0 = performance.now();
 let passes = 0, failures = 0;
 const check = (ok, what, detail = '') => { if (ok) passes++; else { failures++; console.log(`  失敗: ${what}${detail ? ` — ${detail}` : ''}`); } };
 const section = (s) => console.log(`\n== ${s}`);
+// GR27 の R・O の別のプロセス(下の gr27child。GR27 の節が node --stack-size=150 で流す)
+if (process.argv.includes('--gr27child')) { await gr27child(); process.exit(0); }
 
 // 309 ファイルの既知の件数(P2 の 4 回目の裁定 1。GR4 の完了報告の確認の後の 2 回目の指示 1 で数え方を足した後の値。
 // reports/GR4/P5_tests_*.md の 9 章)
@@ -745,6 +749,272 @@ section('GR19. 入門用の例');
     console.log(`  ${name}(${c?.label ?? '候補なし'}): (a)〜(e) ${n ? n.join('・') : '—'}、図の診断 ${r?.diagnostics.length ?? '—'} 件`);
     check(!!r?.svg && n.every((x) => x === 0), `GR19 U3: 入門用の例の${name}が描け、(a)〜(e) が 0 件`, JSON.stringify(n));
   }
+}
+
+// ---- GR27 の R・O の別のプロセス(node --stack-size=150 tests/view/run.mjs --gr27child。上の GR27 の節が流す)。1 行に 1 件、
+// { ok, what, detail, info } の JSON を出す。Worker(src/app/worker.js)を大域の self・postMessage で動かすので、ほかの検査と同じプロセスでは流さない
+const GR27_CHILD_ROWS = 27;
+async function gr27child() {
+  const out = (o) => console.log(JSON.stringify(o));
+  const nest = (open, leaf, n) => { const L = []; for (let i = 0; i + 1 < n; i++) L.push(open(i)); L.push(leaf(n - 1)); for (let i = 0; i + 1 < n; i++) L.push('}'); return L; };
+  const pkgs = (n, tail) => { const L = []; for (let i = 0; i < n; i++) L.push(`package n${i} {`); L.push('part def X;'); for (let i = 0; i < n; i++) L.push('}'); return [...L, ...tail].join('\n') + '\n'; };
+  // R: 入れ子の形ごとに描く
+  const parts = nest((i) => `part n${i} {`, (i) => `part n${i};`, 2000).join('\n') + '\n';
+  const forms = [
+    ['部品の入れ子 2000 段を一般ビュー', parts, renderGeneral, 'generalCandidates', null, 2000],
+    ['部品の入れ子 2000 段を相互接続ビュー', parts, renderInterconnection, 'candidates', 'part:n0', 2000],
+    ['行動の入れ子 1000 段をアクションフロービュー', nest((i) => `action a${i} {`, (i) => `action a${i};`, 1000).join('\n') + '\n', renderActionFlow, 'actionCandidates', null, 1000],
+    ['状態の入れ子 1000 段を状態遷移ビュー', nest((i) => `state s${i} {`, (i) => `state s${i};`, 1000).join('\n') + '\n', renderStateTransition, 'stateCandidates', null, 1000],
+    ['ポートの入れ子 500 段を相互接続ビュー', ['part sys {', 'part a {', ...nest((i) => `port p${i} {`, (i) => `port p${i};`, 500), '}', 'part b;', '}'].join('\n') + '\n', renderInterconnection, 'candidates', 'part:sys', 500],
+    ['expose X::** で公開したパッケージの入れ子 500 段を一般ビュー', pkgs(500, ['view v : StandardViewDefinitions::GeneralView { expose n0::**; }']), renderGeneral, 'generalCandidates', 'view:v', 500],
+  ];
+  const prepared = new Map();
+  for (const [name, text, render, key, cand, n] of forms) {
+    const t0 = performance.now();
+    let nodes = 0, err = null;
+    try {
+      if (!prepared.has(text)) prepared.set(text, prepareView(text));
+      const p = prepared.get(text);
+      const r = render(p, cand ?? p[key][0]?.id);
+      nodes = r.svg ? r.structure?.nodes.length ?? 0 : 0;
+    } catch (e) { err = String(e?.message ?? e); }
+    const ms = Math.round(performance.now() - t0);
+    out({ ok: !err && nodes >= n, what: `GR27 R: スタックを 150 KB にしても、${name}で描ける(入れ子の深さに比例して呼び出しを深くしない。設計書 2.6 節)`, detail: err ?? `要素 ${nodes}`, info: `R ${name}: 要素 ${nodes}、${ms} ms` });
+  }
+  prepared.clear();
+  // O: Worker の結果
+  globalThis.self = globalThis;
+  let got = [];
+  globalThis.postMessage = (m) => got.push(m);
+  await import('../../src/app/worker.js');
+  const call = (m) => { got = []; self.onmessage({ data: { type: 'run', candidateId: null, opening: false, enabled: ['general', 'interconnection', 'action-flow', 'state-transition', 'sequence', 'grid'], ...m } }); return got.find((x) => x.type === 'result'); };
+  const { unpackOutline, unpackCandidates } = await import('../../src/app/modeltree.js');
+  const { buildOutline } = await import('../../src/app/outline.js');
+  const { analyzeFiles } = await import('../../src/model/files.js');
+  const { prepareFromAnalysis, folderLabels } = await import('../../src/app/prepare.js');
+  const { folderKey } = await import('../../src/app/runner.js');
+  const { FILES: GF } = await import('../../tools/model/gr26_folder.mjs');
+  const norm = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((y) => [y, x[y]])) : x));
+  const gfiles = Object.keys(GF).filter((p) => p.endsWith('.sysml')).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).map((p) => ({ path: p, text: GF[p] }));
+  const cases = [['例', fs.readFileSync('src/app/sample.sysml', 'utf8'), null], ['入門用の例', fs.readFileSync('src/app/sample_intro.sysml', 'utf8'), null], ['試しのフォルダ', null, gfiles],
+    ['部品の入れ子 300 段', nest((i) => `part n${i} {`, (i) => `part n${i};`, 300).join('\n') + '\n', null]];
+  for (const [name, t, files] of cases) {
+    const text = files ? folderKey(files) : t;
+    const fx = files ? { files } : {};
+    // 今の形(Worker を通さずに、同じ関数で作ったもの)
+    let p, a = null;
+    if (files) { a = analyzeFiles(files); p = prepareFromAnalysis(a); } else p = prepareView(text);
+    const want = buildOutline(p, a);
+    const candsOf = (key) => (a ? folderLabels(p[key], a.files) : p[key]).map((c) => ({ id: c.id, kind: c.kind, label: c.label }));
+    const r1 = call({ id: 1, text, ...fx, view: 'interconnection', needOutline: false });
+    const o1 = unpackOutline(r1.outline);
+    const same1 = norm(o1) === norm(want) && norm(unpackCandidates(r1.candidates, r1.paths ?? null)) === norm(candsOf('candidates'));
+    let diff = null;
+    if (!same1) { const i = want.items.findIndex((x, k) => norm(x) !== norm(o1?.items[k])); diff = i >= 0 ? `項目 ${i}: ${norm(want.items[i]).slice(0, 200)} / ${norm(o1?.items[i]).slice(0, 200)}` : '参照箇所か候補が違う'; }
+    out({ ok: same1 && want.items.length > 0, what: `GR27 O: ${name}の Worker の結果(受け渡しの形)を画面の戻し方で戻したモデルツリー(項目ごとの表示の文字・修飾名・同一性の鍵・型・参照箇所)と範囲の候補(id・label)が、今の形と同じ`, detail: diff ?? '', info: `O ${name}: 項目 ${want.items.length}、候補 ${r1.candidates.length}、結果 ${JSON.stringify(r1).length} 字` });
+    const r2 = call({ id: 2, text, ...fx, view: 'general', needOutline: false });
+    const r3 = call({ id: 3, text, ...fx, view: 'general', needOutline: true });
+    const same2 = !('outline' in r2) && 'outline' in r3 && norm(unpackOutline(r3.outline)) === norm(want) && norm(unpackCandidates(r2.candidates, r2.paths ?? null)) === norm(candsOf('generalCandidates'));
+    out({ ok: same2, what: `GR27 O: ${name}で、同じテキストのビューの切り替えの結果にモデルツリーが入らず、needOutline(画面が持っていない)のときは入る`, detail: `2 回目 ${'outline' in r2 ? 'あり' : 'なし'}、needOutline ${'outline' in r3 ? 'あり' : 'なし'}` });
+  }
+  // 受け渡しの大きさが入れ子の深さの 2 乗にならない
+  const s400 = JSON.stringify(call({ id: 4, text: pkgs(400, []), opening: true, needOutline: true })).length;
+  const s800 = JSON.stringify(call({ id: 5, text: pkgs(800, []), opening: true, needOutline: true })).length;
+  out({ ok: s800 / s400 < 3, what: 'GR27 O: パッケージの入れ子 400 段と 800 段を開いた結果の大きさの比が 3 未満(入れ子の深さの 2 乗に比例しない。2 乗なら約 4)', detail: `${s400} → ${s800}`, info: `O 結果の大きさ: パッケージの入れ子 400 段 ${s400} 字、800 段 ${s800} 字(比 ${(s800 / s400).toFixed(2)})` });
+  // ---- GR27 P4 の Q: 図の構造の修飾名の受け渡し。Worker の結果の structure を画面の戻し方(unpackStructure)で戻したものが、描画の関数の
+  // structure(今の形)と同じ(要素・線・枠の info.qname を含む全体。6 つのビューの全候補)
+  const { unpackStructure } = await import('../../src/app/modeltree.js');
+  const RV = { general: [renderGeneral, 'generalCandidates'], interconnection: [renderInterconnection, 'candidates'], 'action-flow': [renderActionFlow, 'actionCandidates'], 'state-transition': [renderStateTransition, 'stateCandidates'], sequence: [renderSequence, 'sequenceCandidates'], grid: [renderTables, 'tableCandidates'] };
+  for (const [name, t, files] of cases) {
+    const text = files ? folderKey(files) : t;
+    const fx = files ? { files } : {};
+    const p = files ? prepareFromAnalysis(analyzeFiles(files)) : prepareView(text);
+    let n = 0, nq = 0, diff = null;
+    for (const [view, [render, key]] of Object.entries(RV)) {
+      for (const c of p[key]) {
+        const r = call({ id: 6, text, ...fx, view, candidateId: c.id, needOutline: false });
+        const want = render(p, c.id).structure;
+        const got = unpackStructure(r.structure);
+        n++;
+        nq += want ? [want.frame, ...want.nodes, ...want.edges].filter((x) => x?.info?.qname).length : 0;
+        if (JSON.stringify(got) !== JSON.stringify(want)) diff ??= `${view} ${c.id}`;
+        if (r.structure && JSON.stringify(r.structure).includes('"qname"')) diff ??= `${view} ${c.id}: 受け渡しの形に qname が残る`;
+      }
+    }
+    out({ ok: !diff && n > 0, what: `GR27 Q: ${name}の Worker の結果の図の構造を、画面の戻し方(unpackStructure)で戻したものが、描画の関数の構造と同じ(info.qname を含む。6 つのビューの全候補)`, detail: diff ?? '', info: `Q ${name}: 候補 ${n}、修飾名 ${nq}` });
+  }
+  const p400 = JSON.stringify(call({ id: 7, text: nest((i) => `part n${i} {`, (i) => `part n${i};`, 400).join('\n') + '\n', opening: true, needOutline: true })).length;
+  const p800 = JSON.stringify(call({ id: 8, text: nest((i) => `part n${i} {`, (i) => `part n${i};`, 800).join('\n') + '\n', opening: true, needOutline: true })).length;
+  out({ ok: p800 / p400 < 3, what: 'GR27 Q: 部品の入れ子 400 段と 800 段を開いた結果(一般ビュー)の大きさの比が 3 未満(図の構造の修飾名が入れ子の深さの 2 乗に比例しない)', detail: `${p400} → ${p800}`, info: `Q 結果の大きさ: 部品の入れ子 400 段 ${p400} 字、800 段 ${p800} 字(比 ${(p800 / p400).toFixed(2)})` });
+  // ---- GR27 P4 の E: 描画の外の深い再帰。スタック 150 KB で、部品の入れ子 2000 段・パッケージの入れ子 2000 段・パッケージの入れ子 2000 段を
+  // 再帰の import で取り込むテキストの、解析・名前解決・描画(run)と、図からの編集の要求(elementAt を通るもの)が内部エラーにならない
+  const reqOk = (r) => !!r && !/^内部エラー/.test(r.reason ?? '');
+  const runOk = (r) => !!r && r.ok && !/内部エラー|例外/.test(JSON.stringify(r.diagnostics ?? null));
+  const editAll = (text, e, del) => {
+    const base = { text, src: [e.start, e.end], kind: e.kind };
+    const ask = (m) => { got = []; self.onmessage({ data: m }); return got.at(-1); };
+    const res = {
+      renameInfo: ask({ type: 'renameInfo', id: 11, ...base }), editInfo: ask({ type: 'editInfo', id: 12, ...base, view: 'general' }),
+      ...(e.kind !== 'Package' ? { addPort: ask({ type: 'add', id: 13, ...base, op: 'port', name: 'q9', typeIndex: null, conjugated: false, direction: '' }) } : {}),
+      addPart: ask({ type: 'add', id: 14, ...base, op: 'part', name: 'w9', typeIndex: null }), deletePlan: ask({ type: 'deletePlan', id: 15, ...base }),
+      ...(del ? { delete: ask({ type: 'delete', id: 16, ...base }) } : {}), rename: ask({ type: 'rename', id: 17, ...base, which: 'name', newName: `${e.name}_r` }),
+    };
+    const bad = Object.entries(res).filter(([, r]) => !reqOk(r)).map(([k, r]) => `${k}: ${r?.reason ?? '応答なし'}`);
+    const okAll = res.renameInfo?.ok && res.editInfo?.ok && res.rename?.ok;
+    return { ok: !bad.length && !!okAll, detail: bad.join(' / ') || Object.entries(res).map(([k, r]) => `${k} ${r?.ok}`).join('、') };
+  };
+  const deepest = (p, pred) => { let hit = null; const st = [p.ctx.tree]; while (st.length) { const e = st.pop(); if (pred(e)) hit = e; for (let k = e.related.length - 1; k >= 0; k--) st.push(e.related[k]); for (let k = e.owned.length - 1; k >= 0; k--) st.push(e.owned[k]); } return hit; };
+  const pk = (n, tail) => { const L = []; for (let i = 0; i < n; i++) L.push(`package n${i} {`); L.push('part def X;'); for (let i = 0; i < n; i++) L.push('}'); return [...L, ...tail].join('\n') + '\n'; };
+  const eForms = [
+    ['部品の入れ子 2000 段', nest((i) => `part n${i} {`, (i) => `part n${i};`, 2000).join('\n') + '\n', (e) => e.kind === 'PartUsage' && e.name === 'n1999', true],
+    ['パッケージの入れ子 2000 段', pk(2000, []), (e) => e.kind === 'PartDefinition' && e.name === 'X', false],
+    ['パッケージの入れ子 2000 段を再帰の import(n0::**)で取り込むテキスト', pk(2000, ['package U { private import n0::**; part u : X; }']), (e) => e.kind === 'PartUsage' && e.name === 'u', false],
+  ];
+  for (const [name, text, pred, del] of eForms) {
+    const t1 = performance.now();
+    let r1 = null, err = null;
+    try { r1 = call({ id: 10, text, opening: true, needOutline: true }); } catch (x) { err = `${x?.name}: ${x?.message}`; }
+    out({ ok: !err && runOk(r1), what: `GR27 E: スタックを 150 KB にしても、${name}の解析・名前解決・描画(Worker の run)が内部エラーにならない`, detail: err ?? JSON.stringify(r1?.diagnostics ?? null).slice(0, 300), info: `E ${name}: run ${Math.round(performance.now() - t1)} ms` });
+    const t2 = performance.now();
+    let er = null;
+    try { const e = deepest(prepareView(text), pred); er = e ? editAll(text, e, del) : { ok: false, detail: '対象の要素がない' }; } catch (x) { er = { ok: false, detail: `例外 ${x?.name}: ${x?.message}` }; }
+    out({ ok: er.ok, what: `GR27 E: スタックを 150 KB にしても、${name}の一番内側の要素への図からの編集の要求(名前の変更の情報・操作の情報・追加・削除の確かめ${del ? '・削除' : ''}・名前の変更)が内部エラーにならない`, detail: er.detail, info: `E ${name}: 編集の要求 ${Math.round(performance.now() - t2)} ms` });
+  }
+  const { buildTree } = await import('../../src/app/tree.js');
+  let depth = 0, terr = null;
+  try { const dirs = Array.from({ length: 2000 }, (_, i) => `d${i}`); let x = buildTree([`${dirs.join('/')}/a.sysml`], []); while (x.dirs.length) { x = x.dirs[0]; depth++; } } catch (x) { terr = `${x?.name}: ${x?.message}`; }
+  out({ ok: !terr && depth === 2000, what: 'GR27 E: スタックを 150 KB にしても、深さ 2000 のフォルダの木を作れる(src/app/tree.js の buildTree)', detail: terr ?? `深さ ${depth}` });
+}
+
+// ---- GR27. 描画の性能などの改善(GR27 指示書 4 章の A・X・R・O・L)
+//   A・X: 線の探索の A*(src/view/layout.js の GR27_LAYOUT.A)と索引の使い回し(同じく X)を切った図と入れた図が、例(2 つ)・記号ごとの
+//         最小の入力(5 つのビュー)・部品 10 個と接続 24 本・部品 50 個の鎖(tools/perf/gen.mjs の C1・C2 と同じ形)の全候補で同じ SVG
+//         (309 ファイルの全数比較は tools/view/gr18_compare.mjs で行い、報告に書く)
+//   R: 入れ子の深さに比例して呼び出しが深くならない(設計書 2.6 節): スタックを 150 KB にした別のプロセス(このファイルを --gr27child で
+//      流す)で、部品の入れ子 2000 段を一般ビューと相互接続ビューで、行動・状態の入れ子 1000 段、ポートの入れ子 500 段、
+//      expose X::** で公開したパッケージの入れ子 500 段を描ける
+//   O: 同じ別のプロセスで、Worker(src/app/worker.js)の結果を画面の戻し方(src/app/modeltree.js の unpackOutline・unpackCandidates)で戻した
+//      ものが、buildOutline と候補の一覧(今の形)と項目ごとに同じ(例・試しのフォルダ・部品の入れ子 300 段)。同じテキストの 2 回目(ビューの
+//      切り替え)の結果にモデルツリーが入らず、needOutline のときは入る。パッケージの入れ子 400 段と 800 段で、結果の大きさの比が 3 未満
+//      (深さの 2 乗なら約 4)
+//   L: src/app/runner.js の utf8Bytes が TextEncoder と同じバイト数を返し、BIG_TEXT が 1,000,000。画面の知らせは tests/view/app_main.mjs --gr27
+section('GR27. A・X(図を変えない線の探索の直し)、R(入れ子の深さ)、O(モデルツリーの受け渡し)、L(大きいファイルの知らせ)');
+{
+  const { GR27_LAYOUT } = await import('../../src/view/layout.js');
+  // C1・C2 と同じ形の小さい入力(tools/perf/gen.mjs の c1Text・c2Text と同じ式。検査は tools/perf/ を読まない)
+  const c1 = (P, M) => {
+    const outs = Array(P).fill(0), ins = Array(P).fill(0), conns = [];
+    for (let m = 0; m < M; m++) { const a = m % P, k = Math.floor(m / P), b = (a + 1 + (k % (P - 1))) % P; conns.push(`    connect u${a}.o${outs[a]++} to u${b}.i${ins[b]++};`); }
+    const L = ['port def P;', 'part sys {'];
+    for (let p = 0; p < P; p++) { const ps = []; for (let x = 0; x < outs[p]; x++) ps.push(`        out port o${x} : P;`); for (let y = 0; y < ins[p]; y++) ps.push(`        in port i${y} : P;`); L.push(ps.length ? [`    part u${p} {`, ...ps, '    }'].join('\n') : `    part u${p};`); }
+    return [...L, ...conns, '}'].join('\n') + '\n';
+  };
+  const chain = (n) => { const L = ['port def P;', 'part def D { port a : P; port b : P; }', 'part sys {']; for (let i = 0; i < n; i++) L.push(`    part p${i} : D;`); for (let i = 0; i + 1 < n; i++) L.push(`    connect p${i}.b to p${i + 1}.a;`); L.push('}'); return L.join('\n') + '\n'; };
+  const inputs = [['例', fs.readFileSync('src/app/sample.sysml', 'utf8')], ['入門用の例', fs.readFileSync('src/app/sample_intro.sysml', 'utf8')], ['C1 部品 10・接続 24', c1(10, 24)], ['C2 鎖 50', chain(50)]];
+  for (const dir of ['symbols', 'symbols-state', 'symbols-action', 'symbols-sequence', 'symbols-general']) for (const f of fs.readdirSync(`tests/view/${dir}`).filter((x) => x.endsWith('.sysml')).sort()) inputs.push([`${dir}/${f}`, fs.readFileSync(`tests/view/${dir}/${f}`, 'utf8')]);
+  const R5 = [[renderInterconnection, 'candidates'], [renderStateTransition, 'stateCandidates'], [renderActionFlow, 'actionCandidates'], [renderSequence, 'sequenceCandidates'], [renderGeneral, 'generalCandidates']];
+  const drawAll = (A, X) => {
+    GR27_LAYOUT.A = A; GR27_LAYOUT.X = X;
+    const out = [];
+    try { for (const [, t] of inputs) { const p = prepareView(t); if (!p.ok) continue; for (const [render, key] of R5) for (const c of p[key]) out.push(render(p, c.id).svg ?? 'null'); } }
+    finally { GR27_LAYOUT.A = true; GR27_LAYOUT.X = true; }
+    return out;
+  };
+  const both = drawAll(true, true), noA = drawAll(false, true), noX = drawAll(true, false);
+  const diffs = (a, b) => a.reduce((n, s, i) => n + (s !== b[i] ? 1 : 0), 0) + Math.abs(a.length - b.length);
+  console.log(`  A・X: ${inputs.length} 入力、${both.length} 候補。A を切った図との違い ${diffs(both, noA)}、X を切った図との違い ${diffs(both, noX)}`);
+  check(both.length > 300 && diffs(both, noA) === 0, 'GR27 A: 線の探索を A* にした図が、見積もりを 0 にした(ダイクストラ法と同じ順で取り出す)図と同じ(例・記号ごとの入力・C1・C2 の小さい入力の全候補)', `${diffs(both, noA)} 候補が違う`);
+  check(both.length > 300 && diffs(both, noX) === 0, 'GR27 X: 索引を配置ごとに使い回した図が、線ごとに作った図と同じ(同上)', `${diffs(both, noX)} 候補が違う`);
+  // R・O: スタックを 150 KB にした別のプロセス
+  const { spawnSync } = await import('node:child_process');
+  const p = spawnSync(process.execPath, ['--stack-size=150', path.join(ROOT, 'tests/view/run.mjs'), '--gr27child'], { cwd: ROOT, encoding: 'utf8', timeout: 900000, maxBuffer: 1 << 26 });
+  const rows = (p.stdout ?? '').split('\n').filter((x) => x.startsWith('{')).map((x) => JSON.parse(x));
+  check(p.status === 0 && rows.length === GR27_CHILD_ROWS, `GR27 R・O: スタックを 150 KB にした別のプロセス(tests/view/run.mjs --gr27child)が ${GR27_CHILD_ROWS} 件の結果を出して終わる`, `終了コード ${p.status}、${rows.length} 件 ${(p.stderr ?? '').slice(0, 400)}`);
+  for (const r of rows) { if (r.info) console.log(`  ${r.info}`); check(r.ok, r.what, r.detail ?? ''); }
+  // L: バイト数の数え方
+  const { utf8Bytes, BIG_TEXT, bigTextNote } = await import('../../src/app/runner.js');
+  const samples = ['', 'abc', 'é', '温度センサ', '\u{1F600}', 'a\uD800b', '\uDC00', 'x'.repeat(1000) + '日本語\u{20BB7}'];
+  check(BIG_TEXT === 1000000 && samples.every((s) => utf8Bytes(s) === new TextEncoder().encode(s).length), 'GR27 L: utf8Bytes が TextEncoder と同じバイト数を返し(対になっていないサロゲートを含む)、知らせの境目 BIG_TEXT が 1,000,000 バイト', samples.map((s) => `${utf8Bytes(s)}/${new TextEncoder().encode(s).length}`).join(' '));
+  check(bigTextNote(1000001, false) === '大きいファイル(1,000,001 バイト)なので、解析に時間がかかります' && bigTextNote(1234567, true) === '大きいフォルダ(.sysml の合計 1,234,567 バイト)なので、解析に時間がかかります', 'GR27 L: 知らせの文(1 つのファイルとフォルダ)', bigTextNote(1000001, false));
+}
+
+// ---- GR27 P4. V・H(GR27 指示書 4 章。E・Q は上の gr27child で、スタックを 150 KB にした別のプロセスで確かめる)
+//   V: 線の探索の範囲を限る直し(W。GR27 の P3)の切り替えとコードがない
+//   T: (GR27 P5 の U で T を戻したので、T の 3 件の検査を消した。予定の red の 2)
+//   H: テキスト欄の色付け(src/app/highlight.js の makeWindowHighlighter)の出力が、前の関数(GR27 の H の前のもの。ここに写したもの)と
+//      同じ(2 つの例・試しのフォルダの各ファイル・1 MB を超える例の繰り返し・注の境目の小さい入力の、先頭・途中・末尾・注の中と直後・
+//      行の数を超える位置・NaN)。行ごとの注の表(commentFrom)が、すべての行で前の探し方と同じ
+section('GR27 P4. V(W を消した)、H(テキスト欄の色付け)');
+{
+  // V
+  const { GR27_LAYOUT } = await import('../../src/view/layout.js');
+  const lsrc = fs.readFileSync('src/view/layout.js', 'utf8');
+  check(JSON.stringify(Object.keys(GR27_LAYOUT)) === JSON.stringify(['A', 'X']) && !/WIN_PAD|findRouteIn|GR27_LAYOUT\.W/.test(lsrc), 'GR27 V: 線の探索の範囲を限る直し(W)の切り替えとコードがない(GR27_LAYOUT は A・X だけ)', JSON.stringify(GR27_LAYOUT));
+  // H
+  const HL = await import('../../src/app/highlight.js');
+  const grammar = (await import('../../src/parser/grammar_table.js')).default;
+  // 前の関数(GR27 の H の前の src/app/highlight.js の makeWindowHighlighter のまま。字句の色付けは今の makeHighlighter を使う)
+  const oldWindow = (opts) => {
+    const highlight = HL.makeHighlighter(opts);
+    let cacheText = null, cacheIdx = null;
+    return function render(text, view) {
+      if (text !== cacheText) { cacheText = text; cacheIdx = HL.lineIndex(text); }
+      const { starts, maxCols } = cacheIdx;
+      const nLines = starts.length;
+      const lh = view.lineHeight, pad = view.padding ?? 0;
+      const first = Math.max(0, Math.floor((view.scrollTop - pad) / lh) - HL.MARGIN);
+      const last = Math.min(nLines - 1, Math.ceil((view.scrollTop - pad + view.height) / lh) + HL.MARGIN);
+      let from = first;
+      const s0 = starts[first];
+      const open = text.lastIndexOf('/*', s0 - 1);
+      if (open >= 0 && text.lastIndexOf('*/', s0 - 1) < open) {
+        let lo = 0, hi = first;
+        while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= open) lo = mid; else hi = mid - 1; }
+        from = lo;
+      }
+      const startPos = starts[from];
+      const endPos = last + 1 < nLines ? starts[last + 1] : text.length;
+      const body = highlight(text.slice(startPos, endPos).replace(/\n$/, ''));
+      const above = from * lh, below = Math.max(0, (nLines - 1 - last) * lh);
+      return `<span style="display:block;height:${above}px"></span>${body}<span style="display:inline-block;width:${maxCols}ch"></span>`
+        + (below > 0 ? `\n<span style="display:block;height:${Math.max(0, below - lh)}px"></span>` : '');
+    };
+  };
+  const { FILES: GF } = await import('../../tools/model/gr26_folder.mjs');
+  const sample = fs.readFileSync('src/app/sample.sysml', 'utf8');
+  const lines = (n, f) => Array.from({ length: n }, (_, i) => f(i)).join('\n');
+  let big = '';
+  for (let k = 0; big.length <= 1000000; k++) big += `${sample}\n/* 注 ${k}\n   2 行目 */\n// 1 行の注 ${k}\n`;
+  const hin = [['例', sample], ['入門用の例', fs.readFileSync('src/app/sample_intro.sysml', 'utf8')], ...Object.keys(GF).sort().map((p) => [`試しのフォルダ ${p}`, GF[p]]), ['1 MB を超える例の繰り返し', big],
+    ['長い注の中', `part a;\n/*\n${lines(400, (i) => `注 ${i}`)}\n*/\npart b;\n${lines(300, (i) => `part c${i};`)}\n`],
+    ['先頭の注と閉じない注', `/* 先頭\n${lines(200, (i) => `part p${i};`)}\n*/\n${lines(200, (i) => `part q${i};`)}\n/* 閉じない\n${lines(300, (i) => `x ${i}`)}`],
+    ['重なる並び', `${lines(150, (i) => (i % 7 === 0 ? `/*/ part r${i}; */*` : i % 5 === 0 ? `*/ part s${i}; /*` : `part t${i};`))}\n`],
+    ['文字列の中の並び', `${lines(150, (i) => (i % 9 === 0 ? `doc /* "/*" */ part u${i};` : `attribute v${i} = "a/*b";`))}\n*/ end\n${lines(150, (i) => `part w${i};`)}\n`],
+    ['空', ''], ['改行だけ', '\n\n\n'], ['注の始まりだけ', '/*']];
+  const LH = 19.5, PADH = 10, HH = 600;
+  let hN = 0, hDiff = 0, firstH = '', tabN = 0, tabDiff = 0;
+  for (const [name, text] of hin) {
+    const ra = oldWindow({ keywords: grammar.keywords, symbols: grammar.symbols }), rb = HL.makeWindowHighlighter({ keywords: grammar.keywords, symbols: grammar.symbols });
+    const { starts } = HL.lineIndex(text);
+    const maxTop = Math.max(0, starts.length * LH + 2 * PADH - HH);
+    const tops = new Set([0, Math.round(maxTop / 2), maxTop, maxTop + 5000, NaN]);
+    for (let k = 0; k < 12; k++) tops.add(Math.round((maxTop * k) / 11));
+    for (let k = 0, at = text.indexOf('/*'); at >= 0 && k < 12; at = text.indexOf('/*', at + 2), k++) {
+      let line = 0; while (line + 1 < starts.length && starts[line + 1] <= at) line++;
+      for (const dl of [0, 1, 41, 42]) tops.add((line + dl + 40) * LH + PADH);
+    }
+    for (const t of tops) { hN++; const view = { scrollTop: t, height: HH, lineHeight: LH, padding: PADH }; if (ra(text, view) !== rb(text, view)) { hDiff++; firstH ||= `${name} ${t}`; } }
+    // 行ごとの注の表(大きい入力は 1 行おき)
+    const tab = HL.commentFrom(text, starts);
+    const step = text.length > 100000 ? 7 : 1;
+    for (let L = 0; L < starts.length; L += step) {
+      let from = L; const s0 = starts[L], open = text.lastIndexOf('/*', s0 - 1);
+      if (open >= 0 && text.lastIndexOf('*/', s0 - 1) < open) { let lo = 0, hi = L; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= open) lo = mid; else hi = mid - 1; } from = lo; }
+      tabN++; if (tab[L] !== from) tabDiff++;
+    }
+  }
+  check(hN > 250 && hDiff === 0, `GR27 H: テキスト欄の色付けの出力が、前の関数と同じ(${hin.length} 入力、${hN} 位置。先頭・途中・末尾・注の中と直後・行の数を超える位置・NaN)`, firstH);
+  check(tabN > 7000 && tabDiff === 0, `GR27 H: 行ごとの注の表(commentFrom)が、前の探し方(lastIndexOf で「/*」と「*/」を探す)と同じ(${tabN} 行)`, `${tabDiff} 行が違う`);
 }
 
 // ---- まとめ

@@ -24,6 +24,7 @@
 // なければ(1 つのテキスト)今のまま
 
 import { parse } from '../parser/index.js';
+import { walkTree } from '../parser/tree.js';
 import { makeLexer, unquote } from '../parser/lexer.js';
 import grammar from '../parser/grammar_table.js';
 import { resolveNames } from '../model/index.js';
@@ -150,30 +151,44 @@ export function positionsOf(tree) {
   const pos = new Map();
   if (tree.forestRoots) {
     pos.set(tree, '/');
-    tree.forestRoots.forEach((root, i) => (function walk(e, s) {
-      pos.set(e, s);
-      e.owned.forEach((c, j) => walk(c, `${s}o${j}`));
-      e.related.forEach((c, j) => walk(c, `${s}r${j}`));
-    })(root, `/f${tree.forestFiles.indexOf(tree.forestFiles.find(f => f.root === root))}`));
+    tree.forestRoots.forEach((root, i) => eachPosition(root, `/f${tree.forestFiles.indexOf(tree.forestFiles.find(f => f.root === root))}`, (e, s) => { pos.set(e, s); }));
     return pos;
   }
-  (function walk(e, s) {
-    pos.set(e, s);
-    e.owned.forEach((c, i) => walk(c, `${s}o${i}`));
-    e.related.forEach((c, i) => walk(c, `${s}r${i}`));
-  })(tree, '/');
+  eachPosition(tree, '/', (e, s) => { pos.set(e, s); });
   return pos;
+}
+// 構文木を前順(要素、owned の子を順に、related の子を順に)でたどり、visit(要素, 位置) を呼ぶ。位置は positionsOf と同じ形(s0 に o<i>・r<i> を
+// つなげたもの)。visit が true を返したら、そこでたどるのをやめる。再帰でたどるのと同じ順序で、明示のスタックを使う(入れ子の深さに比例して
+// 呼び出しを深くしない。設計書 2.6 節。GR27 の E)
+export function eachPosition(root, s0, visit) {
+  const stack = [[root, s0]];
+  while (stack.length) {
+    const [e, s] = stack.pop();
+    if (visit(e, s) === true) return;
+    for (let j = e.related.length - 1; j >= 0; j--) stack.push([e.related[j], `${s}r${j}`]);
+    for (let j = e.owned.length - 1; j >= 0; j--) stack.push([e.owned[j], `${s}o${j}`]);
+  }
+}
+// 構文木を前順(walkTree と同じ順)でたどり、pred(要素) が真になる最初の要素を返す(なければ null)。明示のスタックを使う(GR27 の E)
+export function findNode(root, pred) {
+  const stack = [root];
+  while (stack.length) {
+    const e = stack.pop();
+    if (pred(e)) return e;
+    for (let k = e.related.length - 1; k >= 0; k--) stack.push(e.related[k]);
+    for (let k = e.owned.length - 1; k >= 0; k--) stack.push(e.owned[k]);
+  }
+  return null;
 }
 
 export function modelDump(a) {
   const pos = positionsOf(a.tree);
   const id = (t) => !t ? null : t.builtin ? `builtin:${t.qname}` : t.virtual ? `virtual:${pos.get(t.of)}` : pos.get(t) ?? '?';
   const elements = [];
-  (function walk(e, owner) {
+  // 前順で、持ち主(構文木の親)と一緒にたどる(明示のスタック。GR27 の E)
+  walkTree(a.tree, (e, owner) => {
     elements.push({ pos: pos.get(e), kind: e.kind, owner: owner ? pos.get(owner) : null, name: e.name ?? null, shortName: e.shortName ?? null });
-    for (const c of e.owned) walk(c, e);
-    for (const c of e.related) walk(c, e);
-  })(a.tree, null);
+  });
   const refs = a.model.refs.map(r => ({ key: `${pos.get(r.node)}|${r.prop}|${r.index ?? ''}`, status: r.status, target: id(r.target) }));
   return { elements, refs };
 }
@@ -334,11 +349,10 @@ const q = (s) => `「${s}」`;
 // namingFeatureOf。namesOf と同じ求め方)、切れば名前を書かない再定義で受け継ぐものだけ(redefinitionNamingOf。GR15 の E2)
 function sameNamed(tree, model, element) {
   const from = new Map();
-  (function walk(e) {
+  walkTree(tree, (e) => {
     const nf = EDIT17.E3 ? model.namingFeatureOf(e) : model.redefinitionNamingOf(e);
     if (nf) { if (!from.has(nf)) from.set(nf, []); from.get(nf).push(e); }
-    e.owned.forEach(walk); e.related.forEach(walk);
-  })(tree);
+  }); // 前順の明示のスタック(GR27 の E)
   const out = [element];
   for (let i = 0; i < out.length; i++) for (const f of from.get(out[i]) ?? []) if (!out.includes(f)) out.push(f);
   return out;

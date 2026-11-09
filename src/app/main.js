@@ -14,13 +14,13 @@
 import { makeWindowHighlighter } from './highlight.js';
 import { readSysml, fileKind, OPEN_ONLY_SYSML, printIds, comparePaths, isFolderSysml } from './io.js';
 import { toPrompt, buildDiagnostics, WARNING_TITLE, tokenRange, noDiagnostics } from './diag.js';
-import { makeRunner, scopePlaceholder, mapRange, findBySource, eolOf, withEol, folderKey } from './runner.js';
+import { makeRunner, scopePlaceholder, mapRange, findBySource, eolOf, withEol, folderKey, BIG_TEXT, utf8Bytes, bigTextNote } from './runner.js';
 import { pieceSvg, pieceBase, tableBase } from '../view/pieces.js';
 import { makeFolderHistory } from './history.js';
 import { makeZip, overwriteFolder } from './save.js';
 import { buildTree, nameError, copyName, parentOf, baseOf, joinPath, isSameOrUnder, hiddenDir } from './tree.js';
 import { widths, dragTree, dragMiddle, TREE_INIT } from './layout.js';
-import { visibleRows, ROLE_ORDER, SEC_SPLIT, sectionSizes, textX } from './modeltree.js';
+import { visibleRows, ROLE_ORDER, SEC_SPLIT, sectionSizes, textX, unpackOutline, unpackCandidates, unpackStructure, candidateTexts } from './modeltree.js';
 import { askWrite, listDisk, readAt, writeNew, makeDir, removeAt, moveFile, copyDir, listIn, moveDir, errText } from './fsops.js';
 
 const $ = (s) => document.querySelector(s);
@@ -28,6 +28,8 @@ const $ = (s) => document.querySelector(s);
 let srcEl = $('#src');
 const singleEl = srcEl;
 const hlEl = $('#hl'), msgEl = $('#msg'), viewEl = $('#view'), canvasEl = $('#canvas'), editEl = $('#edit'), scopeEl = $('#scope');
+let scopeCands = []; // 範囲の欄に並べた候補(GR27 P5 の S。syncScopeTitle が使う)
+let modelWinReady = false; // モデルツリーの行を並べる部品(GR27 P5 の M)の準備ができたか(applySections は、その前にも呼ばれる)
 const progEl = $('#progress'), progText = $('#progressText'), progFill = $('#progressFill');
 const viewKindEl = $('#viewKind');
 
@@ -129,9 +131,19 @@ function onWorkerMessage(m) {
   if (m.type === 'connectInfo') { onConnectInfo(m); return; }
   if (m.type === 'deletePlan') { onDeletePlan(m); return; }
   if (m.type === 'progress') { if (m.id === runId) updateProgress(m); return; }
-  if (m.type === 'result' && m.id === runId) { resultText = lastRunText; resultCombined = lastRunCombined; resultFolder = m.folder ?? null; resultItems = lastRunItems; finishRun(); applyResult(m); }
+  if (m.type === 'result' && m.id === runId) { resultText = lastRunText; resultCombined = lastRunCombined; resultFolder = m.folder ?? null; resultItems = lastRunItems; finishRun(); applyResult(unpackResult(m)); }
 }
 let lastRunText = null; // 最後に頼んだ解析のテキスト
+// Worker の結果の受け渡しの形を、今の形に戻す(GR27 の O・Q。src/app/modeltree.js の unpackOutline・unpackCandidates・unpackStructure)。outline の鍵がない結果は、
+// テキストが前の結果と変わっていないので、モデルツリーを送っていない(applyOutline が前のモデルツリーを使う)
+function unpackResult(m) {
+  const { paths, ...r } = m;
+  if (r.outline) r.outline = unpackOutline(r.outline);
+  // 範囲の欄の候補の文字(長い修飾名の前を「…::」で省いたもの。GR27 P5 の S)は、受け渡しの形から作る(名前の全部を組み立てない)
+  if (r.candidates) { r.candidateTexts = candidateTexts(r.candidates, paths ?? null); r.candidates = unpackCandidates(r.candidates, paths ?? null); }
+  if (r.structure) r.structure = unpackStructure(r.structure); // 図の構造の修飾名(GR27 の Q)
+  return r;
+}
 
 // 解析を頼む。解析中にテキスト・ビュー・範囲が変わったら、Worker を止めて新しい Worker で解析し直す(設計書 2.6 節。GR18 の B5)
 function analyze() {
@@ -146,17 +158,37 @@ function analyze() {
   lastRunItems = folder ? folder.files.slice() : null;
   clearTimeout(progressTimer);
   progressTimer = setTimeout(() => { if (running()?.id === id) progEl.classList.add('on'); }, 1000);
-  runner.run({ type: 'run', id, text, ...(folder ? { files: folderFiles() } : {}), candidateId: wantScope ?? (scopeEl.value || null), view: viewKindEl.value, opening, enabled: ENABLED_VIEWS });
+  // needOutline: このテキストのモデルツリーを画面が持っていないとき(開く・新規などで忘れたとき、前の結果を受け取らなかったとき)は、
+  // テキストが Worker の前の解析と同じでも、結果にモデルツリーを入れてもらう(GR27 の O)
+  runner.run({ type: 'run', id, text, ...(folder ? { files: folderFiles() } : {}), candidateId: wantScope ?? (scopeEl.value || null), view: viewKindEl.value, opening, enabled: ENABLED_VIEWS, needOutline: model.text !== text });
+  checkBigText(text, opening);
   wantScope = null;
   opening = false;
   // 処理中は、前の結果の「候補がない」などを出さない(GR18 の B6。設計書 2.6 節)。図を描けていない間の表示を消し、進み具合だけを出す
   if (!shown) clearNoResult();
+  showBigNote();
+}
+// 大きいファイルの知らせ(GR27 の L。設計書 5 章)。開いたテキスト(フォルダのときは .sysml の合計。テキスト欄の中のテキスト(行末は LF)を
+// UTF-8 で数える)が BIG_TEXT バイトを超えるときに、診断の欄の上に出す(解析は止めない)。開いたとき(開く・ドロップ・フォルダを開く・例・新規)と、
+// 書き換え・貼り付けで BIG_TEXT 以下から超えたときに出す(超えたまま書き換え続けても、出し直さない)。出した知らせは、そのテキストの解析の
+// 結果を出した後も残し、テキストが変わった後の結果で消す
+let bigNote = null, lastBytes = 0;
+function checkBigText(text, open) {
+  const bytes = folder ? folderFiles().reduce((n, f) => n + utf8Bytes(f.text), 0) : utf8Bytes(srcEl.value);
+  if (bytes > BIG_TEXT && (open || lastBytes <= BIG_TEXT)) bigNote = { key: text, text: bigTextNote(bytes, !!folder) };
+  else if (bigNote && bigNote.key !== text) bigNote = null;
+  lastBytes = bytes;
+}
+function showBigNote() {
+  msgEl.querySelector('.bignote')?.remove();
+  if (bigNote && bigNote.key === curKey()) msgEl.prepend(el('div', 'bignote', bigNote.text));
 }
 function clearNoResult() {
   canvasEl.querySelectorAll('.empty').forEach((x) => x.remove());
   scopeEl.textContent = '';
   scopeEl.append(new Option('(処理中)', ''));
   msgEl.textContent = '';
+  scopeCands = []; syncScopeTitle();
 }
 function finishRun() {
   clearTimeout(progressTimer);
@@ -184,6 +216,13 @@ function updateProgress(p) {
 }
 
 // ---- 結果
+// 範囲の欄にマウスを載せたときの文(GR27 P5 の S): 選んでいる候補の文字の全部(省く前の label)だけを、範囲の欄の title に入れる。候補ごとの
+// option には付けない。範囲の欄の中身か選択を替えたら入れ直す
+function syncScopeTitle() {
+  const v = scopeEl.value;
+  const c = v ? scopeCands.find((x) => x.id === v) : null;
+  scopeEl.title = c ? c.label : '';
+}
 function applyResult(r) {
   last = r;
   // 接続を足す途中にテキストが変わったら、選んだ端が古くなるので、途中をやめる(GR16 の A)
@@ -194,8 +233,12 @@ function applyResult(r) {
   const keep = scopeEl.value;
   scopeEl.textContent = '';
   if (!r.candidates.length) scopeEl.append(new Option(scopePlaceholder(r), '')); // 内部エラーと構文エラーを分ける(GR18 の B2)
-  for (const c of r.candidates) scopeEl.append(new Option(c.label, c.id));
+  // 候補の文字は、修飾名が長いときに前を省いたもの(GR27 P5 の S。設計書 5 章の終わり)。値(value)は今のまま
+  const texts = r.candidateTexts ?? r.candidates.map((c) => c.label);
+  r.candidates.forEach((c, i) => scopeEl.append(new Option(texts[i], c.id)));
   if (r.candidate) scopeEl.value = r.candidate.id; else if (keep && r.candidates.some((c) => c.id === keep)) scopeEl.value = keep;
+  scopeCands = r.candidates;
+  syncScopeTitle();
   if (r.ok && r.svg) {
     canvasEl.innerHTML = r.svg; // src/view が作った SVG の文字列(入力の文字はすべてエスケープしてある)
     shown = { svg: r.svg, structure: r.structure };
@@ -294,6 +337,7 @@ function renderDiagnostics(d, ok) {
   section(`未検査の名前(${d.unchecked.count} 件。このアプリが中身を知らない名前で、正しいかどうか確かめていない)`, 'warn', d.unchecked.groups.slice(0, 40).map((g) => [`${g.name}: ${g.count} 件(${g.lines.join('・')} 行)`, g.locs ? g.locs[0]?.line : g.lines[0], null, g.locs?.[0]?.file]).concat(d.unchecked.groups.length > 40 ? [[`ほか ${d.unchecked.groups.length - 40} 種類`, null]] : []));
   section('図の診断', 'warn', d.view.map((v) => [`${P(v)}${v.line ? `${v.line} 行: ` : ''}${v.message}`, v.line, null, v.file]));
   if (ok && !d.syntax.length && !d.semantic.length && !d.warning?.length && !d.internal.length && !d.unchecked.count && !d.ambiguous.count && !d.view.length) msgEl.append(el('div', 'ok', 'エラーと未検査はありません。'));
+  showBigNote(); // 大きいファイルの知らせ(GR27 の L)は、そのテキストの結果の間は残す
 }
 function showInternal(m) { msgEl.prepend(el('div', 'err', m)); }
 
@@ -1000,7 +1044,7 @@ function setText(text, base = null) {
   if (base) fileBase = base;
   selectedId = null;
   selectedSrc = null;
-  scopeEl.value = '';
+  scopeEl.value = ''; syncScopeTitle();
   opening = true;
   updateHighlight();
   analyze();
@@ -1193,7 +1237,7 @@ function openFolder(name, files, handle, others = [], dirs = []) {
   fileBase = name || 'sysmlv2'; // 図・表の画像のファイル名の「元の名前」はフォルダの名前
   selectedId = null;
   selectedSrc = null;
-  scopeEl.value = '';
+  scopeEl.value = ''; syncScopeTitle();
   opening = true;
   setCurrent(0);
   updateHighlight();
@@ -1276,7 +1320,7 @@ function showNoSysml() {
   canvasEl.append(el('div', 'empty', 'このフォルダには .sysml のファイルがありません。左のフォルダの木の「新しいファイル」で、名前が .sysml で終わるファイルを作ると、ここに図が出ます。'));
   viewEl.classList.remove('stale');
   scopeEl.textContent = '';
-  scopeEl.append(new Option('(.sysml のファイルがない)', ''));
+  scopeEl.append(new Option('(.sysml のファイルがない)', '')); scopeCands = []; syncScopeTitle();
   msgEl.textContent = '';
   appendBtn.disabled = true;
   appendBtn.title = '今は押せない: .sysml のファイルがない';
@@ -1358,12 +1402,21 @@ function renderTreeNow() {
   };
   // 名前の入力欄(GR24 の F): 新しいファイル・新しいフォルダは、作るフォルダの中の先頭に、名前の変更は、その項目の代わりに出す
   const ed = folder.editing;
-  const walk = (node, depth) => {
-    if (ed && !ed.path && ed.dir === node.path) treeBodyEl.append(editRow(depth));
-    for (const d of node.dirs) { if (ed?.path === d.path) { treeBodyEl.append(editRow(depth)); continue; } if (row(d, depth, true)) walk(d, depth + 1); }
+  // フォルダの深さに比例して呼び出しを深くしないよう、明示のスタックで回す(GR27 の E。行を出す順は前の再帰と同じ: フォルダの中の
+  // 名前の入力欄、子のフォルダを順に(開いていればその中を続けて)、ファイルを順に)
+  const stack = [{ node: root, depth: 0, i: -1 }];
+  while (stack.length) {
+    const t = stack[stack.length - 1], node = t.node, depth = t.depth;
+    if (t.i < 0) { t.i = 0; if (ed && !ed.path && ed.dir === node.path) treeBodyEl.append(editRow(depth)); }
+    if (t.i < node.dirs.length) {
+      const d = node.dirs[t.i++];
+      if (ed?.path === d.path) { treeBodyEl.append(editRow(depth)); continue; }
+      if (row(d, depth, true)) stack.push({ node: d, depth: depth + 1, i: -1 });
+      continue;
+    }
     for (const f of node.files) { if (ed?.path === f.path) { treeBodyEl.append(editRow(depth)); continue; } row(f, depth, false); }
-  };
-  walk(root, 0);
+    stack.pop();
+  }
   treeBodyEl.querySelector('.trow.cur')?.scrollIntoView?.({ block: 'nearest' });
 }
 // 木の項目のクリック: フォルダは開閉、.sysml のファイルはテキスト欄に出す。.sysml でないファイルは選ぶだけ(今のファイルを変えない)
@@ -1522,6 +1575,7 @@ function applySections() {
   secFiles.sec.style.flex = '0 0 auto'; secFiles.sec.style.height = `${z.files}px`;
   secModel.sec.style.flex = '0 0 auto'; secModel.sec.style.height = `${z.model}px`;
   refPaneEl.style.height = `${z.refs}px`;
+  if (modelWinReady) modelWindow(); // 本体の高さが変わったら、並べる行を入れ直す(GR27 P5 の M)
 }
 secReady = true;
 applySections();
@@ -1622,14 +1676,69 @@ function renderModel() {
   modelBodyEl.textContent = '';
   const o = model.outline;
   if (!o || !o.items.length) {
+    model.rows = []; // 並べる行がない(GR27 P5 の M: スクロールなどで前の木の行を並べ直さない)
     if (o && !o.errorFiles.length) modelBodyEl.append(el('div', 'mempty', '並べる要素がありません(パッケージ・定義・使用を書くと、ここに出ます)'));
     renderRefs();
     return;
   }
   model.rows = visibleRows(o, (it) => model.open.has(it.key));
-  for (const { id, depth } of model.rows) modelBodyEl.append(modelRow(o.items[id], depth));
+  renderModelRows();
   renderRefs();
 }
+// ---- モデルツリーの行を、見えている範囲と前後の少し(画面 1 枚分ずつ)だけ並べる(GR27 P5 の M。指示書 3.3 節)。上と下の残りの行は、
+// 高さだけを持つ空き(.mpad)で表す。行の要素は、今と同じく本体(#modelBody)の直下に、空きの間に並べる。
+// 行の高さは固定として扱う: 初めて並べた行の高さ(行の外接矩形の高さの最大)を測り、すべての行をその高さにする(本体の CSS の変数
+// --mrow-h。style.css の .mrow)。測れないとき(区画を畳んでいるなど)は MROW_H0 として計算し、行の高さは決めない(測れたときに付け直す)。
+// 窓の大きさが変わったとき(字の大きさの拡大を含む)は、測り直す。
+// 並べる行を入れ直すのは: 開閉・選択・解析し直し(renderModel)、スクロールしたとき・本体の高さが変わったとき(区画と欄の高さの付け直し
+// applySections、本体の ResizeObserver)で、見えている範囲が並べている範囲を出たとき、窓の大きさが変わったとき
+const MROW_H0 = 20;
+const mwin = { h: null, from: 0, to: 0 };
+const mrowH = () => mwin.h ?? MROW_H0;
+// 見えている行の範囲 [first, last) と、画面 1 枚分の行の数 per。本体の高さが 0(畳んでいる・測れない)なら、窓の高さで見積もる
+function modelSpan() {
+  const n = model.rows.length, H = mrowH();
+  const ch = modelBodyEl.clientHeight;
+  const vh = ch > 0 ? ch : (window.innerHeight || 600);
+  const per = Math.max(1, Math.ceil(vh / H));
+  const first = Math.min(Math.max(0, Math.floor((modelBodyEl.scrollTop || 0) / H)), Math.max(0, n - per));
+  return { first, last: Math.min(n, first + per), per };
+}
+function renderModelRows() {
+  const o = model.outline, n = model.rows.length;
+  const { first, last, per } = modelSpan(); // 中身を消す前に、スクロールの位置と高さを読む
+  const from = Math.max(0, first - per), to = Math.min(n, last + per);
+  const H = mrowH();
+  modelBodyEl.textContent = '';
+  const top = el('div', 'mpad');
+  top.style.height = `${from * H}px`;
+  modelBodyEl.append(top);
+  const made = [];
+  for (let i = from; i < to; i++) { const { id, depth } = model.rows[i]; const r = modelRow(o.items[id], depth); made.push(r); modelBodyEl.append(r); }
+  const bottom = el('div', 'mpad');
+  bottom.style.height = `${(n - to) * H}px`;
+  modelBodyEl.append(bottom);
+  mwin.from = from; mwin.to = to;
+  if (mwin.h == null && made.length) {
+    const h = Math.max(...made.map((r) => r.getBoundingClientRect?.().height ?? 0));
+    if (h > 0) { mwin.h = h; modelBodyEl.style.setProperty?.('--mrow-h', `${h}px`); if (h !== H) renderModelRows(); }
+  }
+}
+// スクロール・高さの変化: 見えている範囲が並べている範囲を出たとき(と、行の高さをまだ測れていないとき)だけ入れ直す
+function modelWindow() {
+  if (!model.outline || !model.rows.length) return;
+  const { first, last } = modelSpan();
+  if (mwin.h == null || first < mwin.from || last > mwin.to) renderModelRows();
+}
+modelBodyEl.addEventListener('scroll', modelWindow);
+modelWinReady = true;
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => modelWindow()).observe(modelBodyEl);
+window.addEventListener('resize', () => {
+  if (!model.outline || !model.rows.length) return;
+  mwin.h = null;
+  modelBodyEl.style.removeProperty?.('--mrow-h');
+  renderModelRows();
+});
 function modelRow(it, depth) {
   const r = el('div', 'mrow');
   r.dataset.id = String(it.id);
@@ -2439,9 +2548,9 @@ $('#btnSample').addEventListener('click', () => {
   d.showModal();
 });
 // 範囲・ビューを替えたら、接続を足す途中をやめる(選んだ端が今の図のものでなくなるため。GR18 の E4)
-scopeEl.addEventListener('change', () => { selectedId = null; selectedSrc = null; endConnect(); analyze(); });
+scopeEl.addEventListener('change', () => { syncScopeTitle(); selectedId = null; selectedSrc = null; endConnect(); analyze(); });
 // ビューを変えたら、範囲の候補はそのビューのものに変わるので、範囲を選び直す
-viewKindEl.addEventListener('change', () => { selectedId = null; selectedSrc = null; scopeEl.value = ''; endConnect(); analyze(); });
+viewKindEl.addEventListener('change', () => { selectedId = null; selectedSrc = null; scopeEl.value = ''; syncScopeTitle(); endConnect(); analyze(); });
 // 「書き方」の中の「コピー」(data-copy の id の要素の文字をコピーする。生成 AI 向けプロンプト。GR17 の H)
 $('#btnHelp').addEventListener('click', () => {
   const d = $('#dlgHelp');

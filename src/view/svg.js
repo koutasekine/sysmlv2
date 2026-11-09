@@ -4,7 +4,7 @@
 // 図の要素ごとに <g data-id data-sym data-start data-end> でまとめる(段階 0 で、原文の範囲に移るのに使う)。
 // 文字はすべて escapeXml を通す(設計書 10 章の安全性)。
 
-import { escapeXml as X } from './common.js';
+import { escapeXml as X, runNested } from './common.js';
 import { FONT_FAMILY, textWidth } from './textwidth.js';
 import { FS, FSS, LINE, ICON_W, centerOf, holderHead } from './layout.js';
 import { svgShapes, boxConflicts, GR12_EDGES } from './quality.js';
@@ -30,15 +30,16 @@ export function toSvg(d, opts = { labels: true }) {
     + `</defs>`);
   out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="${PAPER}"/>`);
   if (d.frame) out.push(frameSvg(d.frame));
-  // 箱は外側から順に描く(入れ子の箱が上に重なる)。区画の中の本体の図(GR7)は、持ち主の箱の領域の後に描く
-  const drawBox = (o) => {
+  // 箱は外側から順に描く(入れ子の箱が上に重なる)。区画の中の本体の図(GR7)は、持ち主の箱の領域の後に描く。
+  // 入れ子の箱は明示のスタックで回す(GR27 の R。描く順は前の再帰と同じ)
+  const drawBox = function* (o) {
     if (o.type === 'box') out.push(boxSvg(o, get));
     else if (o.type === 'note') out.push(noteSvg(o));
     else if (o.type === 'dparam') out.push(dparamSvg(o));
     else if (o.type === 'pnode') out.push(pnodeSvg(o));
-    if (o.type === 'box') { for (const id of o.region) drawBox(get(id)); for (const id of bodiesOf(o)) drawBox(get(id)); }
+    if (o.type === 'box') { for (const id of o.region) yield drawBox(get(id)); for (const id of bodiesOf(o)) yield drawBox(get(id)); }
   };
-  for (const id of d.top) drawBox(get(id));
+  for (const id of d.top) runNested(drawBox(get(id)));
   // シーケンスビューの生存線とポートの頭(GR9)。頭の箱の後、線の前に描く
   for (const o of d.objects.values()) if (o.type === 'lifeline') out.push(lifelineSvg(o));
   for (const o of d.objects.values()) if (o.type === 'sqport') out.push(sqPortSvg(o));
@@ -50,13 +51,13 @@ export function toSvg(d, opts = { labels: true }) {
   if (d.edges.length || lifeHits.length) out.push(`<g data-sym="hit-areas">${d.edges.map(hitSvg).join('')}${lifeHits.join('')}</g>`);
   for (const e of d.edges) out.push(edgeSvg(e, get));
   // ポートと点は線の上に描く
-  const drawPorts = (o) => {
+  const drawPorts = function* (o) {
     if (o.type !== 'box') return;
     for (const id of o.ports) out.push(portSvg(get(id), get));
-    for (const id of o.region) drawPorts(get(id));
-    for (const id of bodiesOf(o)) drawPorts(get(id));
+    for (const id of o.region) yield drawPorts(get(id));
+    for (const id of bodiesOf(o)) yield drawPorts(get(id));
   };
-  for (const id of d.top) drawPorts(get(id));
+  for (const id of d.top) runNested(drawPorts(get(id)));
   for (const o of d.objects.values()) if (o.type === 'dot') out.push(dotSvg(o));
   // シーケンスビューの生存線の上の点(sq-proxy)
   for (const o of d.objects.values()) if (o.type === 'lifeline') for (const id of o.proxies) out.push(portSvg(get(id), get));
@@ -212,7 +213,9 @@ function arrowGlyph(cx, cy, a) {
   return `<path d="${d}" fill="none" stroke="${INK}" stroke-width="1"/>`;
 }
 
-function portSvg(p, get) {
+// 入れ子のポートは明示のスタックで回す(GR27 の R。文字列の並びは前の再帰と同じ)
+function portSvg(p, get) { return runNested(portSvgGen(p, get)); }
+function* portSvgGen(p, get) {
   const parts = [];
   const side = p.side ?? 't';
   const vertical = side === 'l' || side === 'r';
@@ -237,8 +240,9 @@ function portSvg(p, get) {
       parts.push(text(p.cx - w / 2 + 6, side === 't' ? p.cy - 5 : p.cy + 13, p.label));
       if (a) parts.push(`<g data-sym="pdv">${arrowGlyph(p.cx - w / 2 + head - 10, p.cy + (side === 't' ? -9 : 9), a)}</g>`);
     }
-    const body = group(p, sym, parts.join(''));
-    return body + p.children.map((id) => portSvg(get(id), get)).join('');
+    let body = group(p, sym, parts.join(''));
+    for (const id of p.children) body += yield portSvgGen(get(id), get);
+    return body;
   }
   if (a) parts.push(`<g data-sym="${vertical ? 'pdh' : 'pdv'}">${arrowGlyph(p.cx, p.cy, a)}</g>`);
   return group(p, sym, parts.join(''));

@@ -65,6 +65,18 @@ export const D3_ASCII_NAMES = true;
 // GR15 P13: 既定に入れた(P12 の完了報告の裁定 Q1。tests/edit の E4 の拒否の入力を、D3 の印によらず拒否される操作に替えた)
 export const D3_SCOPE = true;
 const NON_ASCII = /[^\x00-\x7f]/;
+// 入れ子の深さに比例して呼び出しを深くしないための回し方(GR27 の E。src/view/common.js の runNested と同じもの。src/model/ から
+// src/view/ を読み込まないよう、ここにも置く)。再帰の関数をジェネレーターにし、子の呼び出しを `yield 子のジェネレーター` と書く(子の戻り値は
+// yield の値)。1 つのループと配列のスタックで回し、子を呼ぶ順・戻り値・副作用の順は、ふつうの再帰と同じ
+function runNested(g0) {
+  const st = [g0];
+  let v;
+  while (st.length) {
+    const r = st[st.length - 1].next(v);
+    if (r.done) { st.pop(); v = r.value; } else { st.push(r.value); v = undefined; }
+  }
+  return v;
+}
 const NOT_LIBRARY_NAME = /[ \u0080-\uffff]/;
 const ancestorsCache = new Map();
 function ancestors(kind) {
@@ -541,7 +553,11 @@ export function resolveForest(roots, text, opts = {}) {
 
   // ---- import(KerML 8.3.2.4.4・8.3.2.4.6、8.3.4.13.4 Package::importedMemberships)
   // 戻り値 { entries, unknown: [理由] }
-  function importedBy(imp, excluded) {
+  // importedBy と visibleEntries は互いに呼ぶ(再帰の import と、入れ子の名前空間の import)。入れ子の深さに比例して呼び出しを深くしないよう、
+  // どちらもジェネレーター(importedByG・visibleEntriesG)にし、互いの呼び出しを yield で書いて runNested の 1 つのループで回す
+  // (呼ぶ順・戻り値・副作用の順は前の再帰と同じ。GR27 の E。設計書 2.6 節)。外から呼ぶときは、今までの名前の関数を使う
+  function importedBy(imp, excluded) { return runNested(importedByG(imp, excluded)); }
+  function* importedByG(imp, excluded) {
     // 解決中の import(自身か、それを求めている途中の import)は除く
     const ir = recFor(imp, conforms(imp.kind, 'MembershipImport') ? 'importedMembership' : 'importedNamespace');
     if (ir && recPending.has(ir)) { if (recStack[recStack.length - 1] === ir) exclusionHits++; else guardHits++; return { entries: [], unknown: [] }; }
@@ -554,7 +570,7 @@ export function resolveForest(roots, text, opts = {}) {
       const ns = fp ?? targetOf(imp, 'importedNamespace');
       if (!ns || !isNS(ns)) res = { entries: [], unknown: ['import'] };
       else if (excluded.has(ns)) res = { entries: [], unknown: [] };
-      else res = visibleEntries(ns, excluded, rec, all, true);
+      else res = yield visibleEntriesG(ns, excluded, rec, all, true);
     } else if (conforms(imp.kind, 'MembershipImport')) {
       const r = recFor(imp, 'importedMembership');
       const got = r ? resultOf(r) : null;
@@ -565,7 +581,7 @@ export function resolveForest(roots, text, opts = {}) {
         res = { entries: [gotEntry], unknown: [] };
         const el = got.target;
         if (rec && isNS(el) && !excluded.has(el)) {
-          const v = visibleEntries(el, excluded, true, all, true);
+          const v = yield visibleEntriesG(el, excluded, true, all, true);
           res = { entries: [gotEntry, ...v.entries], unknown: v.unknown };
         }
       }
@@ -592,7 +608,8 @@ export function resolveForest(roots, text, opts = {}) {
   // forImport が true なら import で取り込むメンバーの列挙: 利用者のモデルの型が索引の型から受け継いだメンバーは入れない(GR17 の L。
   // 再帰の import が、入れ子の型ごとに標準ライブラリの同じメンバーを集めて大きく遅くなるのを防ぐ。名前で探すとき(局所の解決・
   // 見える解決)は入れる。索引を使わないときは今のまま)
-  function visibleEntries(ns, excluded, recursive, includeAll, forImport = false) {
+  function visibleEntries(ns, excluded, recursive, includeAll, forImport = false) { return runNested(visibleEntriesG(ns, excluded, recursive, includeAll, forImport)); }
+  function* visibleEntriesG(ns, excluded, recursive, includeAll, forImport = false) {
     forImport = forImport && !!L;
     const key = excluded.size === 0 ? `${recursive}|${includeAll}${forImport ? '|i' : ''}` : null;
     if (key) { const c = visibleCache.get(ns)?.get(key) ?? (ns.lib && LIBC ? LIBC.visible.get(ns)?.get(key) : undefined); if (c) return c; }
@@ -607,7 +624,7 @@ export function resolveForest(roots, text, opts = {}) {
     if (pureB(ns)) {
       entries = [...ns.members];
       const tw = twinOf(ns);
-      if (tw) { const r = visibleEntries(tw, ex2, recursive, includeAll, forImport); pushAll(entries, twinExtra(ns, r.entries)); unknown.push(...r.unknown); }
+      if (tw) { const r = yield visibleEntriesG(tw, ex2, recursive, includeAll, forImport); pushAll(entries, twinExtra(ns, r.entries)); unknown.push(...r.unknown); }
       else if (ns.partial) unknown.push('import');
     }
     else if (ns.virtual) { const h = inheritedEntries(ns) ?? { entries: [], unknown: ['inherit'] }; entries = h.entries; unknown.push(...h.unknown); }
@@ -621,7 +638,7 @@ export function resolveForest(roots, text, opts = {}) {
       for (const imp of (GR18.M3 ? importsOf(ns) : ns.owned)) {
         if (!conforms(imp.kind, 'Import')) continue;
         if (!(includeAll || (imp.attrs.visibility ?? 'private') === 'public')) continue;
-        const r = importedBy(imp, ex2);
+        const r = yield importedByG(imp, ex2);
         pushAll(entries, ownNames?.size ? r.entries.filter(en => !clashes(en)) : r.entries); unknown.push(...r.unknown);
       }
       if (conforms(ns.kind, 'Type')) {
@@ -633,7 +650,7 @@ export function resolveForest(roots, text, opts = {}) {
         for (const en of ownedEntries(ns) ?? []) {
           const el = en.elem;
           if (!el || !(includeAll || en.vis === 'public') || !isNS(el) || el.virtual || ex2.has(el)) continue;
-          const r = visibleEntries(el, ex2, true, includeAll, forImport);
+          const r = yield visibleEntriesG(el, ex2, true, includeAll, forImport);
           pushAll(entries, r.entries); unknown.push(...r.unknown);
         }
       }

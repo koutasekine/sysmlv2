@@ -74,6 +74,7 @@ textarea#src::selection,textarea.fsrc::selection{background:rgba(139,26,43,.25);
 #msg .ok{color:#2a6b2a}
 #msg .warn{color:var(--warn)}
 #msg .sec{font-weight:600;margin-top:4px}
+#msg .bignote{color:var(--warn);margin-bottom:4px}
 #msg ul{margin:2px 0 4px;padding-left:1.4em}
 #msg .bar{display:flex;gap:8px;align-items:center;justify-content:space-between}
 #msg button{font-size:12px;padding:2px 8px}
@@ -162,9 +163,12 @@ footer a{color:#777}
 /* モデルツリー(GR26 の T)。定義と使用の印は、文字の色だけに頼らず形で見分ける(定義は角の四角に「定」、使用は丸に「使」) */
 .mnote{padding:2px 6px;font-size:11px;color:var(--warn);white-space:normal;flex:none}
 .mnote[hidden]{display:none}
-.mbody{flex:1;overflow:auto;padding:2px 0;outline:none;min-height:0}
+.mbody{flex:1;overflow:auto;padding:2px 0;outline:none;min-height:0;overflow-anchor:none}
 .mbody.stale,.rpane.stale{opacity:.5}
-.mrow{display:flex;align-items:center;gap:3px;padding:1px 6px 1px 4px;cursor:pointer;white-space:nowrap;user-select:none}
+/* GR27 P5 の M: 行は見えている範囲と前後の少しだけ並べ、残りは高さだけの空き(.mpad)で表す。行の高さは、画面が初めに測った高さ
+   (--mrow-h)に固定する(測るまでは今のまま)。行を入れ直してもスクロールの位置を動かさないよう、本体のスクロールの固定(overflow-anchor)を切る */
+.mrow{display:flex;align-items:center;gap:3px;padding:1px 6px 1px 4px;cursor:pointer;white-space:nowrap;user-select:none;height:var(--mrow-h,auto)}
+.mpad{flex:none}
 .mrow:hover{background:#f0f0ee}
 .mrow .tw{display:inline-block;width:12px;color:#777;font-size:10px;flex:none}
 /* GR26 の P5 の T: 印・名前・型(.mty)と多重度(.mmu)・種類(.mkd)の順。幅が足りないときは、まず種類を、次に型と多重度を省略の記号で切る

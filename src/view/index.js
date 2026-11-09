@@ -31,7 +31,7 @@
 
 import { parse } from '../parser/index.js';
 import { resolveNames } from '../model/index.js';
-import { makeContext, compareEdgeIds } from './common.js';
+import { makeContext, compareEdgeIds, runNested } from './common.js';
 import { listCandidates, exposeScope } from './scope.js';
 import { buildDiagram } from './diagram.js';
 import { listStateCandidates, buildStateDiagram } from './state.js';
@@ -397,9 +397,10 @@ export function structureOf(d, candidate) {
     if (o.type === 'proxy') return o.symbol === 'sq-proxy' ? 'sq-proxy' : o.side === 'l' || o.side === 'r' ? 'proxy-v' : 'proxy-h';
     return o.symbol;
   };
-  const visit = (o, parent) => {
+  // 入れ子の箱は明示のスタックで回す(GR27 の R。nodes に入れる順は前の再帰と同じ)
+  const visit = function* (o, parent) {
     // 列の外の節点の入れ物(アクションフロービューの helper)は構造に出さず、中身を持ち主の子にする
-    if (o.helper) { for (const id of o.region) visit(d.objects.get(id), parent); return; }
+    if (o.helper) { for (const id of o.region) yield visit(d.objects.get(id), parent); return; }
     const n = { id: o.id, symbol: symOf(o), parent, label: o.header ? `${o.header.keyword} ${o.header.name}` : (o.label ?? (o.heading ?? []).join(' ')), src: o.src };
     if (o.info) n.info = o.info;
     if (o.type === 'port' && o.dir) n.direction = o.dir;
@@ -412,15 +413,15 @@ export function structureOf(d, candidate) {
     if (o.type === 'note') n.lines = o.lines;
     nodes.push(n);
     if (o.type === 'box') {
-      for (const id of o.ports) visit(d.objects.get(id), o.id);
-      for (const id of o.region) visit(d.objects.get(id), o.id);
+      for (const id of o.ports) yield visit(d.objects.get(id), o.id);
+      for (const id of o.region) yield visit(d.objects.get(id), o.id);
       for (const x of d.objects.values()) if (x.type === 'cline' && x.parent === o.id) nodes.push({ id: x.id, symbol: x.symbol, parent: o.id, label: x.line.text, src: x.src });
       // 区画の中の本体の図(GR7)
-      for (const c of [...(o.preCompartments ?? []), ...o.compartments]) if (c.body) visit(d.objects.get(c.body), o.id);
+      for (const c of [...(o.preCompartments ?? []), ...o.compartments]) if (c.body) yield visit(d.objects.get(c.body), o.id);
     }
-    if (o.type === 'port') for (const id of o.children) visit(d.objects.get(id), o.id);
+    if (o.type === 'port') for (const id of o.children) yield visit(d.objects.get(id), o.id);
   };
-  for (const id of d.top) visit(d.objects.get(id), null);
+  for (const id of d.top) runNested(visit(d.objects.get(id), null));
   for (const o of d.objects.values()) if (o.type === 'dot') nodes.push({ id: o.id, symbol: o.symbol, parent: o.parent, label: o.label, src: o.src });
   // シーケンスビューのポートの頭・生存線・生存線の上の点(GR9)
   for (const o of d.objects.values()) {
